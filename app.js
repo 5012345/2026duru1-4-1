@@ -14,30 +14,44 @@ const PlayerState = {
   isSpectating: false
 };
 
-// 상점 아이템 데이터베이스 (테스트용 데모 데이터)
+// 상점 아이템 데이터베이스 (구매 상태 purchased 플래그 추가)
 const ShopData = {
   hair: [
-    { id: 'hair_normal', name: '기본 헤어', price: 0, icon: '💇', equipped: true },
-    { id: 'hair_warrior', name: '전사의 불꽃 헤어', price: 50, icon: '🔥', equipped: false },
-    { id: 'hair_wizard', name: '마법의 퍼플 헤어', price: 80, icon: '🔮', equipped: false },
-    { id: 'hair_crown', name: '황금 왕관', price: 150, icon: '👑', equipped: false }
+    { id: 'hair_normal', name: '기본 헤어', price: 0, icon: '💇', purchased: true, equipped: true },
+    { id: 'hair_warrior', name: '전사의 불꽃 헤어', price: 50, icon: '🔥', purchased: false, equipped: false },
+    { id: 'hair_wizard', name: '마법의 퍼플 헤어', price: 80, icon: '🔮', purchased: false, equipped: false },
+    { id: 'hair_crown', name: '황금 왕관', price: 150, icon: '👑', purchased: false, equipped: false }
   ],
   costume: [
-    { id: 'costume_normal', name: '기본 탐험복', price: 0, icon: '👕', equipped: true },
-    { id: 'costume_armor', name: '강철 플레이트 아머', price: 60, icon: '🛡️', equipped: false },
-    { id: 'costume_robe', name: '대마법사 로브', price: 90, icon: '🧥', equipped: false }
+    { id: 'costume_normal', name: '기본 탐험복', price: 0, icon: '👕', purchased: true, equipped: true },
+    { id: 'costume_armor', name: '강철 플레이트 아머', price: 60, icon: '🛡️', purchased: false, equipped: false },
+    { id: 'costume_robe', name: '대마법사 로브', price: 90, icon: '🧥', purchased: false, equipped: false }
   ],
   aura: [
-    { id: 'aura_none', name: '없음', price: 0, icon: '❌', equipped: true },
-    { id: 'aura_fire', name: '이그니스 오라', price: 100, icon: '🔥', equipped: false, effect: 'aura-fire' },
-    { id: 'aura_ice', name: '프로스트 오라', price: 100, icon: '❄️', equipped: false, effect: 'aura-ice' },
-    { id: 'aura_forest', name: '네이처 오라', price: 120, icon: '🍃', equipped: false, effect: 'aura-forest' }
+    { id: 'aura_none', name: '없음', price: 0, icon: '❌', purchased: true, equipped: true },
+    { id: 'aura_fire', name: '이그니스 오라', price: 100, icon: '🔥', purchased: false, equipped: false, effect: 'aura-fire' },
+    { id: 'aura_ice', name: '프로스트 오라', price: 100, icon: '❄️', purchased: false, equipped: false, effect: 'aura-ice' },
+    { id: 'aura_forest', name: '네이처 오라', price: 120, icon: '🍃', purchased: false, equipped: false, effect: 'aura-forest' }
   ],
   slider: [
-    { id: 'slider_normal', name: '나무 슬라이더', price: 0, icon: '🪵', equipped: true },
-    { id: 'slider_gold', name: '황금 슬라이더', price: 200, icon: '🔱', equipped: false },
-    { id: 'slider_neon', name: '차원 레이저 슬라이더', price: 300, icon: '⚡', equipped: false }
+    { id: 'slider_normal', name: '나무 슬라이더', price: 0, icon: '🪵', purchased: true, equipped: true },
+    { id: 'slider_gold', name: '황금 슬라이더', price: 200, icon: '🔱', purchased: false, equipped: false },
+    { id: 'slider_neon', name: '차원 레이저 슬라이더', price: 300, icon: '⚡', purchased: false, equipped: false }
   ]
+};
+
+// 실시간 적용을 묻기 전에 담아두는 "임시 미리보기 상태"
+const PreviewState = {
+  hair: 'hair_normal',
+  costume: 'costume_normal',
+  aura: 'aura_none',
+  slider: 'slider_normal'
+};
+
+// AI 대전 설정 임시 상태
+const AIMatchConfig = {
+  aiCount: 1,
+  difficulty: 'easy'
 };
 
 // 가상의 방 데이터베이스 (대기실 & 관리자 콘솔용)
@@ -63,7 +77,10 @@ const UI = {
       if (screenId === 'screen-room-list') {
         this.renderRooms();
       } else if (screenId === 'screen-shop') {
+        // 상점 진입 시 현재 장착된 아이템으로 PreviewState 동기화
+        this.syncPreviewWithEquipped();
         this.renderShop('hair');
+        this.updateAvatarPreview();
       } else if (screenId === 'screen-game') {
         this.initGameBoard();
       }
@@ -142,6 +159,76 @@ const UI = {
     this.navigateTo('screen-room-list');
   },
 
+  // AI 대전 설정 모달 열기
+  openAIMatchModal() {
+    const nicknameInput = document.getElementById('input-nickname');
+    let nickname = nicknameInput.value.trim();
+    if (!nickname) {
+      this.showToast('⚠️ 먼저 닉네임을 입력해 주세요!');
+      return;
+    }
+    if (nickname.length < 2) {
+      this.showToast('⚠️ 닉네임은 최소 2글자 이상이어야 합니다.');
+      return;
+    }
+
+    const selectedAvatar = document.querySelector('input[name="avatar"]:checked').value;
+    PlayerState.nickname = nickname;
+    PlayerState.avatar = selectedAvatar;
+
+    this.openModal('modal-ai-match');
+  },
+
+  // AI 수 선택
+  selectAICount(count) {
+    AIMatchConfig.aiCount = count;
+    for (let i = 1; i <= 3; i++) {
+      const btn = document.getElementById(`ai-cnt-${i}`);
+      if (btn) btn.classList.remove('active');
+    }
+    document.getElementById(`ai-cnt-${count}`).classList.add('active');
+  },
+
+  // AI 난이도 선택
+  selectAIDifficulty(diff) {
+    AIMatchConfig.difficulty = diff;
+    const diffs = ['easy', 'normal', 'hard'];
+    diffs.forEach(d => {
+      const btn = document.getElementById(`ai-diff-${d}`);
+      if (btn) btn.classList.remove('active');
+    });
+    document.getElementById(`ai-diff-${diff}`).classList.add('active');
+  },
+
+  // AI 대전 시작
+  startAIMatch() {
+    this.closeModal('modal-ai-match');
+    
+    const diffLabel = AIMatchConfig.difficulty === 'easy' ? '초급' : AIMatchConfig.difficulty === 'normal' ? '중급' : '고급';
+    const roomName = `🤖 AI 대전 (난이도: ${diffLabel})`;
+    
+    // AI 플레이어 생성
+    const players = [PlayerState.nickname];
+    for (let i = 1; i <= AIMatchConfig.aiCount; i++) {
+      players.push(`인공지능_${i}(${diffLabel})`);
+    }
+
+    // 모의 룸 생성
+    const aiRoom = {
+      id: `ai_room_${Date.now()}`,
+      name: roomName,
+      maxPlayers: AIMatchConfig.aiCount + 1,
+      currentPlayers: AIMatchConfig.aiCount + 1,
+      status: '게임중',
+      isPrivate: false,
+      players: players
+    };
+
+    PlayerState.currentRoom = aiRoom;
+    this.showToast(`⚔️ AI 대전 시작! 난이도: ${diffLabel}`);
+    this.navigateTo('screen-game');
+  },
+
   // 규칙서 탭 전환
   switchRulesTab(tabName) {
     document.querySelectorAll('.rules-tab').forEach(btn => btn.classList.remove('active'));
@@ -167,6 +254,16 @@ const UI = {
     this.renderShop(tabName);
   },
 
+  // 현재 실제 장착된 목록으로 PreviewState 동기화
+  syncPreviewWithEquipped() {
+    Object.keys(ShopData).forEach(category => {
+      const equippedItem = ShopData[category].find(i => i.equipped);
+      if (equippedItem) {
+        PreviewState[category] = equippedItem.id;
+      }
+    });
+  },
+
   // 상점 아이템 렌더링
   renderShop(category) {
     const grid = document.getElementById(`grid-${category}`);
@@ -176,52 +273,44 @@ const UI = {
     const items = ShopData[category];
 
     items.forEach(item => {
+      const isCurrentlyPreviewed = PreviewState[category] === item.id;
       const card = document.createElement('div');
-      card.className = `shop-item-card ${item.equipped ? 'equipped' : ''}`;
+      
+      // 장착된 경우 또는 임시 선택된(미리보기 중인) 경우 클래스 부여
+      let cardClasses = 'shop-item-card';
+      if (isCurrentlyPreviewed) {
+        cardClasses += ' equipped'; // 테두리 강조 효과 재사용
+      }
+
+      let badgeText = '';
+      if (item.equipped) {
+        badgeText = '<span style="position:absolute; top:4px; left:4px; background:var(--green-light); color:#wrap; font-size:0.65rem; padding:1px 4px; border-radius:4px;">장착됨</span>';
+      } else if (item.purchased) {
+        badgeText = '<span style="position:absolute; top:4px; left:4px; background:var(--wood-light); color:#wrap; font-size:0.65rem; padding:1px 4px; border-radius:4px;">보유</span>';
+      }
+
+      card.className = cardClasses;
       card.innerHTML = `
+        ${badgeText}
         <div class="shop-item-icon-box">
           <span style="font-size: 2.2rem;">${item.icon}</span>
         </div>
         <div class="shop-item-name">${item.name}</div>
         <div class="shop-item-price-tag">
-          🪙 ${item.price}
+          ${item.price === 0 || item.purchased ? '보유중' : `🪙 ${item.price}`}
         </div>
       `;
 
-      card.onclick = () => this.previewOrBuyItem(category, item);
+      card.onclick = () => this.selectItemForPreview(category, item);
       grid.appendChild(card);
     });
   },
 
-  // 아이템 미리보기 및 구매 로직
-  previewOrBuyItem(category, item) {
-    // 1. 이미 보유/장착 중인 경우 장착 토글
-    if (item.price === 0 || item.equipped) {
-      ShopData[category].forEach(i => i.equipped = false);
-      item.equipped = true;
-      this.showToast(`✨ ${item.name} 장착 완료!`);
-      this.renderShop(category);
-      this.updateAvatarPreview();
-      return;
-    }
-
-    // 2. 구매 필요
-    if (PlayerState.coins >= item.price) {
-      if (confirm(`🪙 코인 ${item.price}개를 지불하고 [${item.name}]을(를) 구매하시겠습니까?`)) {
-        PlayerState.coins -= item.price;
-        item.equipped = true;
-        // 다른 아이템 장착 해제 후 방금 산 것 장착
-        ShopData[category].forEach(i => {
-          if (i.id !== item.id) i.equipped = false;
-        });
-        document.getElementById('shop-coins').textContent = PlayerState.coins;
-        this.showToast(`🎉 구매 성공! ${item.name}을(를) 장착했습니다.`);
-        this.renderShop(category);
-        this.updateAvatarPreview();
-      }
-    } else {
-      this.showToast('🪙 코인이 부족합니다! 게임을 플레이하여 획득하세요.');
-    }
+  // 아이템 클릭 시 장착이 아니라 "미리보기 상태"에 우선 세팅
+  selectItemForPreview(category, item) {
+    PreviewState[category] = item.id;
+    this.renderShop(category);
+    this.updateAvatarPreview();
   },
 
   // 아바타 미리보기 실시간 업데이트
@@ -230,12 +319,98 @@ const UI = {
     const previewAura = document.getElementById('preview-aura-effect');
     previewAvatar.src = `assets/avatar_${PlayerState.avatar}.png`;
 
-    // 오라 효과 체크
-    const equippedAura = ShopData.aura.find(i => i.equipped);
+    // 미리보기 오라 효과 적용
+    const auraId = PreviewState.aura;
+    const auraItem = ShopData.aura.find(i => i.id === auraId);
     previewAura.className = 'aura-effect';
-    if (equippedAura && equippedAura.effect) {
-      previewAura.classList.add(equippedAura.effect);
+    if (auraItem && auraItem.effect) {
+      previewAura.classList.add(auraItem.effect);
     }
+
+    // 우측 하단 미리보기 상세 텍스트 목록 렌더링
+    const previewItemsList = document.getElementById('shop-preview-items');
+    if (previewItemsList) {
+      previewItemsList.innerHTML = '';
+      
+      const categories = [
+        { label: '💇 헤어', key: 'hair' },
+        { label: '👕 의상', key: 'costume' },
+        { label: '✨ 오라', key: 'aura' },
+        { label: '🎚️ 슬라이더', key: 'slider' }
+      ];
+
+      categories.forEach(cat => {
+        const itemId = PreviewState[cat.key];
+        const item = ShopData[cat.key].find(i => i.id === itemId);
+        if (item) {
+          const statusText = item.purchased ? '<span style="color:var(--green-bright);">[보유]</span>' : `<span style="color:var(--gold);">[미보유: 🪙${item.price}]</span>`;
+          const div = document.createElement('div');
+          div.style.display = 'flex';
+          div.style.justify = 'space-between';
+          div.innerHTML = `<span>${cat.label}: ${item.name}</span> ${statusText}`;
+          previewItemsList.appendChild(div);
+        }
+      });
+    }
+  },
+
+  // 적용하기 클릭 시 모아서 일괄 구매 및 장착 처리
+  applyPreviewItems() {
+    const toBuyList = [];
+    let totalPrice = 0;
+
+    // 카테고리별 미리보기 품목 중 미구매 건을 추출
+    Object.keys(PreviewState).forEach(category => {
+      const itemId = PreviewState[category];
+      const item = ShopData[category].find(i => i.id === itemId);
+      if (item && !item.purchased) {
+        toBuyList.push(item);
+        totalPrice += item.price;
+      }
+    });
+
+    // 1. 미구매 아이템이 있을 경우 구매 컨펌 창 팝업
+    if (toBuyList.length > 0) {
+      const itemsNames = toBuyList.map(i => i.name).join(', ');
+      if (PlayerState.coins >= totalPrice) {
+        if (confirm(`🪙 미보유 아이템 [${itemsNames}]의 구매를 위해 총 ${totalPrice} 코인을 지불하시겠습니까?`)) {
+          // 코인 차감 및 구매 상태 전환
+          PlayerState.coins -= totalPrice;
+          document.getElementById('shop-coins').textContent = PlayerState.coins;
+          
+          toBuyList.forEach(item => {
+            item.purchased = true;
+          });
+
+          this.equipSelectedPreviewItems();
+          this.showToast(`🎉 구매 및 아바타 스킨 적용이 완료되었습니다!`);
+        }
+      } else {
+        this.showToast(`⚠️ 코인이 부족합니다. (필요: 🪙${totalPrice} / 보유: 🪙${PlayerState.coins})`);
+      }
+    } else {
+      // 2. 모든 미리보기 아이템이 이미 보유 중인 경우 바로 장착 처리
+      this.equipSelectedPreviewItems();
+      this.showToast(`✨ 아바타 스킨이 모두 적용되었습니다!`);
+    }
+  },
+
+  // 미리보기 상태의 아이템들을 실제 장착(equipped) 상태로 반영
+  equipSelectedPreviewItems() {
+    Object.keys(PreviewState).forEach(category => {
+      const itemId = PreviewState[category];
+      ShopData[category].forEach(item => {
+        item.equipped = (item.id === itemId);
+      });
+    });
+    
+    // UI 다시 그리기
+    const activeTab = document.querySelector('.shop-tab.active');
+    if (activeTab) {
+      const cat = activeTab.id.replace('tab-', '');
+      this.renderShop(cat);
+    }
+    this.updateAvatarPreview();
   },
 
   // 방 목록 렌더링
@@ -285,20 +460,18 @@ const UI = {
   // 방 입장 시도
   tryEnterRoom(room) {
     if (room.status === '게임중') {
-      // 게임 중인 방은 관리자 콘솔을 통한 관전만 유도하거나 관전 팝업 오픈
       this.openSpectateModal(room);
       return;
     }
 
     if (room.isPrivate) {
       const pw = prompt('🔑 비밀번호 4자리를 입력하세요:');
-      if (pw !== '1234') { // 임시 고정 비밀번호
+      if (pw !== '1234') {
         this.showToast('❌ 비밀번호가 올바르지 않습니다.');
         return;
       }
     }
 
-    // 입장 완료 모의 처리
     PlayerState.currentRoom = room;
     this.showToast(`🚪 ${room.name} 방에 입장합니다.`);
     this.navigateTo('screen-game');
@@ -379,7 +552,6 @@ const UI = {
     if (!grid) return;
 
     document.getElementById('admin-rooms-count').textContent = MockRooms.length;
-    // 임시 카운트
     const totalPlayers = MockRooms.reduce((acc, r) => acc + r.currentPlayers, 0) + 1;
     document.getElementById('admin-players-count').textContent = totalPlayers;
 
@@ -418,7 +590,6 @@ const UI = {
     document.getElementById('hud-room-name').textContent = room ? room.name : '개인 연습실';
     document.getElementById('turn-player-name').textContent = PlayerState.nickname;
 
-    // 미니 플레이어 리스트 렌더링
     const miniList = document.getElementById('player-list-mini');
     const leftCards = document.getElementById('player-cards-left');
     miniList.innerHTML = '';
@@ -426,7 +597,6 @@ const UI = {
 
     const listPlayers = room ? room.players : [PlayerState.nickname];
     listPlayers.forEach((p, idx) => {
-      // HUD 미니 아이콘
       const mini = document.createElement('div');
       mini.className = `mini-card ${idx === 0 ? 'active-turn' : ''}`;
       mini.innerHTML = `
@@ -434,7 +604,6 @@ const UI = {
       `;
       miniList.appendChild(mini);
 
-      // 사이드바 프로필 카드
       const card = document.createElement('div');
       card.className = `game-player-card ${idx === 0 ? 'active-turn' : ''}`;
       card.innerHTML = `
@@ -450,7 +619,6 @@ const UI = {
       leftCards.appendChild(card);
     });
 
-    // 캔버스 드로잉 시작
     this.drawGrid();
   },
 
@@ -461,47 +629,39 @@ const UI = {
     const ctx = canvas.getContext('2d');
     const size = canvas.width;
     const center = size / 2;
-    const step = size / 12; // -5 to 5 (총 11칸의 범위 + 여백 확보용 12분할)
+    const step = size / 12;
 
-    // 배경 청소
-    ctx.fillStyle = '#1a0f07'; // 어두운 우드 바탕
+    ctx.fillStyle = '#1a0f07';
     ctx.fillRect(0, 0, size, size);
 
-    // 모눈 눈금선 그리기
-    ctx.strokeStyle = 'rgba(78, 122, 90, 0.25)'; // 초록빛 격자선
+    ctx.strokeStyle = 'rgba(78, 122, 90, 0.25)';
     ctx.lineWidth = 1;
     for (let i = 1; i < 12; i++) {
       const pos = i * step;
-      // 가로선
       ctx.beginPath();
       ctx.moveTo(0, pos);
       ctx.lineTo(size, pos);
       ctx.stroke();
 
-      // 세로선
       ctx.beginPath();
       ctx.moveTo(pos, 0);
       ctx.lineTo(pos, size);
       ctx.stroke();
     }
 
-    // 메인 X축 & Y축 그리기
-    ctx.strokeStyle = 'rgba(78, 181, 112, 0.7)'; // 선명한 그린 축
+    ctx.strokeStyle = 'rgba(78, 181, 112, 0.7)';
     ctx.lineWidth = 3;
     
-    // X축
     ctx.beginPath();
     ctx.moveTo(0, center);
     ctx.lineTo(size, center);
     ctx.stroke();
 
-    // Y축
     ctx.beginPath();
     ctx.moveTo(center, 0);
     ctx.lineTo(center, size);
     ctx.stroke();
 
-    // 눈금 숫자와 좌표 라벨
     ctx.fillStyle = '#d9b48f';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
@@ -514,13 +674,10 @@ const UI = {
       }
       
       const pos = center + (val * step);
-      // X축 눈금 숫자 (가로축 위에 표시)
       ctx.fillText(val.toString(), pos, center + 14);
-      // Y축 눈금 숫자 (세로축 옆에 표시)
-      ctx.fillText((-val).toString(), center - 14, pos); // Canvas Y축은 위에서 아래로 증가하므로 부호 반전
+      ctx.fillText((-val).toString(), center - 14, pos);
     }
 
-    // 사분면 네이밍 장식 텍스트
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.font = 'bold 24px MedievalSharp';
     ctx.fillText('I', center + (size / 4), center - (size / 4));
@@ -528,20 +685,17 @@ const UI = {
     ctx.fillText('III', center - (size / 4), center + (size / 4));
     ctx.fillText('IV', center + (size / 4), center + (size / 4));
 
-    // 현재 슬라이더 값에 따른 십자 조준선 및 임시 점 그리기
     this.drawTargetIndicator(ctx, center, step);
   },
 
-  // 현재 슬라이더 조준점 표시
   drawTargetIndicator(ctx, center, step) {
     const x = PlayerState.selectedX;
     const y = PlayerState.selectedY;
 
     const canvasX = center + (x * step);
-    const canvasY = center - (y * step); // 위쪽이 플러스이므로 마이너스 연산
+    const canvasY = center - (y * step);
 
-    // 십자 하이라이트 가이드라인
-    ctx.strokeStyle = 'rgba(241, 196, 15, 0.3)'; // 골드 흐릿한 가이드라인
+    ctx.strokeStyle = 'rgba(241, 196, 15, 0.3)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     
@@ -552,9 +706,8 @@ const UI = {
     ctx.lineTo(canvasX, ctx.canvas.height);
     ctx.stroke();
     
-    ctx.setLineDash([]); // 대쉬 포맷 해제
+    ctx.setLineDash([]);
 
-    // 타겟 지점 서클링 효과
     ctx.fillStyle = 'var(--gold)';
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
@@ -563,7 +716,6 @@ const UI = {
     ctx.fill();
     ctx.stroke();
 
-    // 펄싱 링
     ctx.strokeStyle = 'rgba(241, 196, 15, 0.8)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -571,7 +723,6 @@ const UI = {
     ctx.stroke();
   },
 
-  // 슬라이더 조작에 따른 값 실시간 매핑
   updateSliderCoords() {
     const xSlider = document.getElementById('slider-x');
     const ySlider = document.getElementById('slider-y');
@@ -579,18 +730,15 @@ const UI = {
     PlayerState.selectedX = parseInt(xSlider.value);
     PlayerState.selectedY = parseInt(ySlider.value);
 
-    // 슬라이더 하단 정보 패널 텍스트 업데이트
     document.getElementById('x-current-val').textContent = `X: ${PlayerState.selectedX}`;
     document.getElementById('y-current-val').textContent = `Y: ${PlayerState.selectedY}`;
 
-    // 선택 좌표 디스플레이 업데이트
     const confirmBtn = document.getElementById('btn-confirm-coord');
     const xyValue = document.getElementById('coord-xy-value');
     
     xyValue.textContent = `( ${PlayerState.selectedX} , ${PlayerState.selectedY} )`;
     confirmBtn.disabled = false;
 
-    // 격자 재선택에 따른 캔버스 드로잉 업데이트
     this.drawGrid();
   }
 };
@@ -599,10 +747,8 @@ const UI = {
 // EVENT LISTENERS & INITIALIZATION
 // ══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  // 전역에서 UI 모듈을 호출할 수 있도록 윈도우 스코프 바인딩
   window.UI = UI;
 
-  // 닉네임 입력란 글자 수 감지 및 뱃지 미리보기 실시간 업데이트
   const nicknameInput = document.getElementById('input-nickname');
   const previewNickname = document.getElementById('preview-nickname');
   
@@ -613,13 +759,10 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 아바타 성별/스킨 라디오 변경 감지
   const maleRadio = document.getElementById('avatar-male');
   const femaleRadio = document.getElementById('avatar-female');
 
   const updateAvatarSelectedStyles = () => {
-    const maleOpt = document.getElementById('avatar-opt-male');
-    const femaleOpt = document.getElementById('avatar-opt-female');
     if (maleRadio.checked) {
       PlayerState.avatar = 'male';
     } else {
@@ -632,7 +775,6 @@ window.addEventListener('DOMContentLoaded', () => {
     femaleRadio.addEventListener('change', updateAvatarSelectedStyles);
   }
 
-  // 방 비공개 여부에 따른 비밀번호 입력란 열고 닫기
   const publicRadio = document.getElementById('room-public');
   const privateRadio = document.getElementById('room-private');
   const passwordGroup = document.getElementById('password-group');
@@ -642,7 +784,6 @@ window.addEventListener('DOMContentLoaded', () => {
     privateRadio.addEventListener('change', () => passwordGroup.style.display = 'block');
   }
 
-  // 게임 슬라이더 체인지 감지 바인딩
   const xSlider = document.getElementById('slider-x');
   const ySlider = document.getElementById('slider-y');
 
@@ -651,14 +792,10 @@ window.addEventListener('DOMContentLoaded', () => {
     ySlider.addEventListener('input', () => UI.updateSliderCoords());
   }
 
-  // 첫 화면 로비 타이틀 플로팅 효과용 파티클
   initParticles();
-
-  // 초기 데이터 연결 확인을 위한 로그
   console.log('🎮 픽셀 이스케이프 클라이언트 구동 완료. UI 이벤트 대기 중...');
 });
 
-// 미세 파티클 생성기 (우드 인테리어 내 먼지 불빛 효과)
 function initParticles() {
   const container = document.getElementById('dustParticles');
   if (!container) return;
@@ -673,7 +810,6 @@ function initParticles() {
     particle.style.top = `${Math.random() * 100}%`;
     particle.style.left = `${Math.random() * 100}%`;
     
-    // 키프레임 애니메이션 랜덤 부여
     const duration = Math.random() * 10 + 10;
     const delay = Math.random() * -20;
     particle.style.animation = `floatParticle ${duration}s linear infinite`;
@@ -683,7 +819,6 @@ function initParticles() {
   }
 }
 
-// Particle Floating Animation 추가
 const style = document.createElement('style');
 style.textContent = `
 @keyframes floatParticle {

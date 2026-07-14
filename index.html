@@ -79,9 +79,12 @@
         </div>
 
         <!-- 버튼들 -->
-        <div class="lobby-buttons">
-          <button class="btn btn-primary" id="btn-enter-lobby" onclick="UI.enterLobby()">
+        <div class="lobby-buttons" style="display: flex; gap: 12px; width: 100%;">
+          <button class="btn btn-primary" id="btn-enter-lobby" onclick="UI.enterLobby()" style="flex: 1;">
             🚪 대기실 입장
+          </button>
+          <button class="btn btn-secondary" id="btn-ai-match" onclick="UI.openAIMatchModal()" style="flex: 1;">
+            🤖 AI와 대전
           </button>
         </div>
       </div>
@@ -101,6 +104,7 @@
 
     </div>
   </section>
+
 
   <!-- ══════════════════════════════════════════════
        SCREEN 2: 대기실 (방 목록 & 생성)
@@ -206,9 +210,16 @@
             <img src="assets/avatar_male.png" alt="아바타 미리보기" class="preview-avatar-img" id="shop-preview-avatar" />
           </div>
           <div class="preview-name" id="shop-preview-name">모험가</div>
-          <button class="btn btn-primary btn-sm" id="btn-equip-all">✅ 적용하기</button>
+          
+          <!-- 미리보기 아이템 현황 추가 -->
+          <div class="preview-items-list" id="shop-preview-items" style="font-size: 0.8rem; color: var(--wood-pale); text-align: center; width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; border: 1px solid var(--wood-medium);">
+            <!-- JS 동적 생성 -->
+          </div>
+
+          <button class="btn btn-primary btn-sm" id="btn-equip-all" onclick="UI.applyPreviewItems()">✅ 적용하기</button>
         </div>
       </aside>
+
 
     </div>
   </section>
@@ -378,24 +389,15 @@
             </ol>
           </div>
           <div class="rules-section">
-            <h3>⚡ 특수 규칙</h3>
-            <ul>
-              <li>🌟 <strong>원점 보너스:</strong> (0, 0) 좌표를 차지하면 다음 턴에 연속으로 한 번 더 놓을 수 있습니다.</li>
-              <li>🔒 <strong>축 잠금:</strong> 축 위의 칸(x=0 또는 y=0)은 '중립지대'로 누구나 사용 가능하지만, 연결에는 포함되지 않습니다.</li>
-              <li>🎴 <strong>차원 카드:</strong> 3연속 완성 시 상대의 픽셀을 1개 제거하는 '차원 균열' 카드를 획득합니다.</li>
-            </ul>
-          </div>
-          <div class="rules-section">
             <h3>🏆 승점 계산</h3>
             <table class="rules-table">
               <tr><th>조건</th><th>획득 코인</th></tr>
+              <tr><td>게임 참가</td><td>🪙 10</td></tr>
               <tr><td>게임 승리</td><td>🪙 50</td></tr>
-              <tr><td>4연속 완성</td><td>🪙 30</td></tr>
-              <tr><td>원점 차지</td><td>🪙 10</td></tr>
-              <tr><td>게임 참가</td><td>🪙 5</td></tr>
             </table>
           </div>
         </div>
+
 
         <!-- 좌표 읽기 규칙 -->
         <div class="rules-content" id="rcontent-coord">
@@ -567,9 +569,44 @@
   </div>
 
   <!-- ══════════════════════════════════════════════
+       MODAL: AI와 대전 설정
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-ai-match" role="dialog" aria-modal="true" aria-labelledby="ai-match-title">
+    <div class="modal-panel wood-panel modal-medium">
+      <div class="modal-header">
+        <h2 class="modal-title" id="ai-match-title">🤖 AI 대전 설정</h2>
+        <button class="modal-close" onclick="UI.closeModal('modal-ai-match')" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">👥 AI 대전 상대 수</label>
+          <div class="player-count-selector" style="display: flex; gap: 10px;">
+            <button class="count-btn active" id="ai-cnt-1" onclick="UI.selectAICount(1)" style="flex: 1;">1명 (1v1)</button>
+            <button class="count-btn" id="ai-cnt-2" onclick="UI.selectAICount(2)" style="flex: 1;">2명 (3인전)</button>
+            <button class="count-btn" id="ai-cnt-3" onclick="UI.selectAICount(3)" style="flex: 1;">3명 (4인전)</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🧠 AI 난이도</label>
+          <div class="player-count-selector" style="display: flex; gap: 10px;">
+            <button class="count-btn active" id="ai-diff-easy" onclick="UI.selectAIDifficulty('easy')" style="flex: 1;">🌱 초급</button>
+            <button class="count-btn" id="ai-diff-normal" onclick="UI.selectAIDifficulty('normal')" style="flex: 1;">🌲 중급</button>
+            <button class="count-btn" id="ai-diff-hard" onclick="UI.selectAIDifficulty('hard')" style="flex: 1;">🔥 고급</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="UI.closeModal('modal-ai-match')">취소</button>
+          <button class="btn btn-primary" onclick="UI.startAIMatch()">⚔️ 대전 시작</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
        TOAST 알림
   ══════════════════════════════════════════════ -->
   <div class="toast-container" id="toast-container"></div>
+
 
   <!-- ══════════════════════════════════════════════
        JavaScript
