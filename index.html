@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>픽셀 이스케이프: 차원 탈출 서바이벌 | 수학 좌표평면 게임</title>
+  <meta name="description" content="중학교 1학년 수학 좌표평면을 배우는 멀티플레이어 보드게임. 친구들과 함께 사분면을 탐험하며 차원 탈출에 도전하세요!" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=MedievalSharp&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       배경 파티클 / 분위기 효과
+  ══════════════════════════════════════════════ -->
+  <div class="bg-overlay" id="bgOverlay"></div>
+  <div class="dust-particles" id="dustParticles"></div>
+
+  <!-- ══════════════════════════════════════════════
+       SCREEN 1: 메인 로비 (닉네임 & 아바타 설정)
+  ══════════════════════════════════════════════ -->
+  <section class="screen active" id="screen-lobby">
+    <div class="lobby-wrapper">
+
+      <!-- 게임 타이틀 -->
+      <header class="game-title-header">
+        <div class="title-icon">🗺️</div>
+        <h1 class="game-title">픽셀 이스케이프</h1>
+        <p class="game-subtitle">차원 탈출 서바이벌 · 좌표평면 보드게임</p>
+        <div class="title-divider"></div>
+      </header>
+
+      <!-- 중앙 로그인 카드 -->
+      <div class="lobby-card wood-panel">
+        <div class="card-header-strip">🏠 모험가 등록소</div>
+
+        <!-- 닉네임 입력 -->
+        <div class="form-group">
+          <label class="form-label" for="input-nickname">🪄 모험가 이름</label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="input-nickname"
+              class="wood-input"
+              placeholder="닉네임을 입력하세요 (2~8자)"
+              maxlength="8"
+            />
+            <span class="input-icon">✏️</span>
+          </div>
+        </div>
+
+        <!-- 아바타 선택 -->
+        <div class="form-group">
+          <label class="form-label">🧑 아바타 선택</label>
+          <div class="avatar-selector">
+            <label class="avatar-option" id="avatar-opt-male">
+              <input type="radio" name="avatar" value="male" id="avatar-male" checked />
+              <div class="avatar-card">
+                <img src="assets/avatar_male.png" alt="남자 아바타" class="avatar-img" />
+                <span class="avatar-label">🧒 탐험가</span>
+              </div>
+            </label>
+            <label class="avatar-option" id="avatar-opt-female">
+              <input type="radio" name="avatar" value="female" id="avatar-female" />
+              <div class="avatar-card">
+                <img src="assets/avatar_female.png" alt="여자 아바타" class="avatar-img" />
+                <span class="avatar-label">👧 마법사</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 닉네임 + 승수 뱃지 미리보기 -->
+        <div class="badge-preview" id="badge-preview">
+          <span class="badge-nickname" id="preview-nickname">모험가</span>
+          <span class="badge-wins" id="preview-wins">🏆 0</span>
+        </div>
+
+        <!-- 버튼들 -->
+        <div class="lobby-buttons">
+          <button class="btn btn-primary" id="btn-enter-lobby" onclick="UI.enterLobby()">
+            🚪 대기실 입장
+          </button>
+        </div>
+      </div>
+
+      <!-- 하단 메뉴 버튼들 -->
+      <div class="bottom-nav">
+        <button class="btn-nav" id="btn-rules" onclick="UI.openModal('modal-rules')">
+          📜 게임 규칙서
+        </button>
+        <button class="btn-nav" id="btn-shop" onclick="UI.navigateTo('screen-shop')">
+          🛍️ 아바타 상점
+        </button>
+        <button class="btn-nav btn-nav-admin" id="btn-admin" onclick="UI.openModal('modal-admin')">
+          ⚙️ 관리자 콘솔
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SCREEN 2: 대기실 (방 목록 & 생성)
+  ══════════════════════════════════════════════ -->
+  <section class="screen" id="screen-room-list">
+    <div class="room-list-wrapper">
+
+      <!-- 상단 헤더 -->
+      <header class="screen-header">
+        <button class="btn-back" onclick="UI.navigateTo('screen-lobby')">← 뒤로</button>
+        <h2 class="screen-title">🏰 모험가 대기실</h2>
+        <div class="player-badge-header">
+          <img src="assets/avatar_male.png" alt="아바타" class="header-avatar" id="header-avatar-img" />
+          <span class="header-nickname" id="header-nickname">모험가</span>
+          <span class="header-badge wins-badge" id="header-wins">🏆 0</span>
+        </div>
+      </header>
+
+      <!-- 방 목록 컨트롤 -->
+      <div class="room-controls">
+        <button class="btn btn-primary btn-sm" id="btn-create-room" onclick="UI.openModal('modal-create-room')">
+          ➕ 방 만들기
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btn-refresh-rooms" onclick="UI.refreshRooms()">
+          🔄 새로고침
+        </button>
+        <div class="room-count-label">현재 <span id="room-count">0</span>개 방 열림</div>
+      </div>
+
+      <!-- 방 목록 그리드 -->
+      <div class="rooms-grid" id="rooms-grid">
+        <!-- 방 카드들이 JS로 동적 생성됩니다 -->
+        <div class="empty-rooms" id="empty-rooms-msg">
+          <span class="empty-icon">🪵</span>
+          <p>아직 열린 방이 없어요.<br />방을 새로 만들어 보세요!</p>
+        </div>
+      </div>
+
+      <!-- 하단 나무 패널 장식 -->
+      <div class="bottom-panel-decor"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SCREEN 3: 아바타 상점
+  ══════════════════════════════════════════════ -->
+  <section class="screen" id="screen-shop">
+    <div class="shop-wrapper">
+
+      <header class="screen-header">
+        <button class="btn-back" onclick="UI.navigateTo('screen-lobby')">← 뒤로</button>
+        <h2 class="screen-title">🛍️ 아바타 상점</h2>
+        <div class="coin-display">
+          <span class="coin-icon">🪙</span>
+          <span class="coin-amount" id="shop-coins">150</span>
+        </div>
+      </header>
+
+      <!-- 상점 탭 -->
+      <div class="shop-tabs" role="tablist">
+        <button class="shop-tab active" id="tab-hair" role="tab" aria-selected="true" onclick="UI.switchShopTab('hair')">
+          💇 헤어
+        </button>
+        <button class="shop-tab" id="tab-costume" role="tab" aria-selected="false" onclick="UI.switchShopTab('costume')">
+          👗 의상
+        </button>
+        <button class="shop-tab" id="tab-aura" role="tab" aria-selected="false" onclick="UI.switchShopTab('aura')">
+          ✨ 오라
+        </button>
+        <button class="shop-tab" id="tab-slider" role="tab" aria-selected="false" onclick="UI.switchShopTab('slider')">
+          🎚️ 슬라이더
+        </button>
+      </div>
+
+      <!-- 상점 아이템 그리드 -->
+      <div class="shop-content-area">
+        <!-- 헤어 탭 -->
+        <div class="shop-panel active" id="panel-hair">
+          <div class="shop-items-grid" id="grid-hair">
+            <!-- JS로 동적 생성 -->
+          </div>
+        </div>
+        <!-- 의상 탭 -->
+        <div class="shop-panel" id="panel-costume">
+          <div class="shop-items-grid" id="grid-costume"></div>
+        </div>
+        <!-- 오라 탭 -->
+        <div class="shop-panel" id="panel-aura">
+          <div class="shop-items-grid" id="grid-aura"></div>
+        </div>
+        <!-- 슬라이더 스킨 탭 -->
+        <div class="shop-panel" id="panel-slider">
+          <div class="shop-items-grid" id="grid-slider"></div>
+        </div>
+      </div>
+
+      <!-- 아바타 미리보기 사이드바 -->
+      <aside class="shop-preview">
+        <div class="preview-frame wood-panel">
+          <p class="preview-title">미리보기</p>
+          <div class="preview-avatar-container">
+            <div class="aura-effect" id="preview-aura-effect"></div>
+            <img src="assets/avatar_male.png" alt="아바타 미리보기" class="preview-avatar-img" id="shop-preview-avatar" />
+          </div>
+          <div class="preview-name" id="shop-preview-name">모험가</div>
+          <button class="btn btn-primary btn-sm" id="btn-equip-all">✅ 적용하기</button>
+        </div>
+      </aside>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SCREEN 4: 게임 화면
+  ══════════════════════════════════════════════ -->
+  <section class="screen" id="screen-game">
+    <div class="game-wrapper">
+
+      <!-- 상단 HUD -->
+      <header class="game-hud">
+        <div class="hud-left">
+          <button class="btn-hud" id="btn-exit-game" onclick="UI.navigateTo('screen-room-list')">🚪 나가기</button>
+          <div class="room-info-hud">방 이름: <strong id="hud-room-name">—</strong></div>
+        </div>
+        <div class="hud-center">
+          <div class="turn-indicator" id="turn-indicator">
+            <span class="turn-label">현재 턴</span>
+            <span class="turn-player" id="turn-player-name">—</span>
+          </div>
+          <div class="round-timer" id="round-timer">
+            <span class="timer-icon">⏱️</span>
+            <span class="timer-value" id="timer-value">30</span>
+          </div>
+        </div>
+        <div class="hud-right">
+          <div class="player-list-mini" id="player-list-mini">
+            <!-- 플레이어 미니 카드들 (JS 동적 생성) -->
+          </div>
+        </div>
+      </header>
+
+      <!-- 게임 메인 영역 -->
+      <main class="game-main-area">
+
+        <!-- ─── 좌: 플레이어 패널 ─── -->
+        <aside class="player-side-panel left-panel">
+          <div class="side-panel-title">플레이어</div>
+          <div class="player-info-cards" id="player-cards-left">
+            <!-- JS 동적 생성 -->
+          </div>
+        </aside>
+
+        <!-- ─── 중앙: 좌표 보드 ─── -->
+        <div class="coordinate-board-area">
+
+          <!-- Y축 슬라이더 (왼쪽 세로) -->
+          <div class="axis-slider-container y-axis-slider-container">
+            <div class="slider-label-top">+5</div>
+            <div class="slider-track-wrapper">
+              <div class="slider-wood-track">
+                <div class="slider-tick-marks y-ticks" id="y-tick-marks"></div>
+              </div>
+              <input
+                type="range"
+                id="slider-y"
+                class="axis-slider y-slider"
+                min="-5"
+                max="5"
+                step="1"
+                value="0"
+                orient="vertical"
+                aria-label="Y축 좌표 선택"
+              />
+            </div>
+            <div class="slider-label-bottom">-5</div>
+            <div class="axis-current-val" id="y-current-val">Y: 0</div>
+          </div>
+
+          <!-- 좌표평면 보드 -->
+          <div class="coordinate-plane-wrapper">
+            <div class="board-frame wood-panel" id="board-frame">
+              <canvas id="coordinate-canvas" width="480" height="480" aria-label="좌표평면 게임 보드"></canvas>
+            </div>
+            <!-- 좌표 입력 확인 영역 -->
+            <div class="coordinate-confirm-area">
+              <div class="coord-display" id="coord-display">
+                <span class="coord-label">선택 좌표:</span>
+                <span class="coord-value" id="coord-xy-value">( 0 , 0 )</span>
+              </div>
+              <button class="btn btn-confirm" id="btn-confirm-coord" disabled>
+                ✅ 이 좌표에 놓기
+              </button>
+            </div>
+          </div>
+
+          <!-- X축 슬라이더 (아래쪽 가로) -->
+          <div class="axis-slider-container x-axis-slider-container">
+            <div class="slider-label-left">-5</div>
+            <div class="slider-track-wrapper">
+              <div class="slider-wood-track horizontal">
+                <div class="slider-tick-marks x-ticks" id="x-tick-marks"></div>
+              </div>
+              <input
+                type="range"
+                id="slider-x"
+                class="axis-slider x-slider"
+                min="-5"
+                max="5"
+                step="1"
+                value="0"
+                aria-label="X축 좌표 선택"
+              />
+            </div>
+            <div class="slider-label-right">+5</div>
+            <div class="axis-current-val" id="x-current-val">X: 0</div>
+          </div>
+
+        </div>
+
+        <!-- ─── 우: 게임 로그 & 정보 ─── -->
+        <aside class="player-side-panel right-panel">
+          <div class="side-panel-title">게임 로그</div>
+          <div class="game-log-area" id="game-log">
+            <div class="log-entry log-system">🎮 게임이 시작되었습니다!</div>
+          </div>
+          <!-- 미니맵 / 사분면 힌트 -->
+          <div class="quadrant-hint-box wood-panel">
+            <div class="hint-title">📐 사분면 안내</div>
+            <div class="quadrant-grid-mini">
+              <div class="q-mini q2">2사분면<br/>(−,+)</div>
+              <div class="q-mini q1">1사분면<br/>(+,+)</div>
+              <div class="q-mini q3">3사분면<br/>(−,−)</div>
+              <div class="q-mini q4">4사분면<br/>(+,−)</div>
+            </div>
+          </div>
+        </aside>
+
+      </main>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       MODAL: 게임 규칙서
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+    <div class="modal-panel wood-panel modal-large">
+      <div class="modal-header">
+        <h2 class="modal-title" id="rules-title">📜 게임 규칙서</h2>
+        <button class="modal-close" onclick="UI.closeModal('modal-rules')" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body rules-body">
+
+        <!-- 규칙서 탭 -->
+        <div class="rules-tabs">
+          <button class="rules-tab active" id="rtab-pixel" onclick="UI.switchRulesTab('pixel')">🎲 픽셀 규칙</button>
+          <button class="rules-tab" id="rtab-coord" onclick="UI.switchRulesTab('coord')">📐 좌표 읽기</button>
+        </div>
+
+        <!-- 픽셀 게임 규칙 -->
+        <div class="rules-content active" id="rcontent-pixel">
+          <div class="rules-section">
+            <h3>🎯 게임 목표</h3>
+            <p>좌표평면 위에 자신의 픽셀을 놓아 <strong>가로, 세로, 대각선 방향으로 4개</strong>를 먼저 연결하면 승리합니다. 단, 적의 픽셀을 피하거나 차단하는 전략이 필요합니다!</p>
+          </div>
+          <div class="rules-section">
+            <h3>🔄 게임 진행 순서</h3>
+            <ol>
+              <li>각 플레이어는 아바타와 색상을 배정받습니다.</li>
+              <li>가위바위보 또는 주사위로 <strong>선공</strong>을 결정합니다.</li>
+              <li>자신의 턴에 X축 슬라이더와 Y축 슬라이더를 조작해 <strong>좌표를 선택</strong>합니다.</li>
+              <li>선택한 좌표에 픽셀을 놓습니다. (30초 타임리밋)</li>
+              <li>이미 픽셀이 있는 좌표는 선택할 수 없습니다.</li>
+              <li>4연속 완성 또는 <strong>모든 칸을 채우면 게임이 종료</strong>됩니다.</li>
+            </ol>
+          </div>
+          <div class="rules-section">
+            <h3>⚡ 특수 규칙</h3>
+            <ul>
+              <li>🌟 <strong>원점 보너스:</strong> (0, 0) 좌표를 차지하면 다음 턴에 연속으로 한 번 더 놓을 수 있습니다.</li>
+              <li>🔒 <strong>축 잠금:</strong> 축 위의 칸(x=0 또는 y=0)은 '중립지대'로 누구나 사용 가능하지만, 연결에는 포함되지 않습니다.</li>
+              <li>🎴 <strong>차원 카드:</strong> 3연속 완성 시 상대의 픽셀을 1개 제거하는 '차원 균열' 카드를 획득합니다.</li>
+            </ul>
+          </div>
+          <div class="rules-section">
+            <h3>🏆 승점 계산</h3>
+            <table class="rules-table">
+              <tr><th>조건</th><th>획득 코인</th></tr>
+              <tr><td>게임 승리</td><td>🪙 50</td></tr>
+              <tr><td>4연속 완성</td><td>🪙 30</td></tr>
+              <tr><td>원점 차지</td><td>🪙 10</td></tr>
+              <tr><td>게임 참가</td><td>🪙 5</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- 좌표 읽기 규칙 -->
+        <div class="rules-content" id="rcontent-coord">
+          <div class="rules-section">
+            <h3>📍 좌표란 무엇인가?</h3>
+            <p>좌표는 평면 위의 <strong>점의 위치</strong>를 나타내는 숫자 쌍입니다. <code>(x, y)</code> 형식으로 씁니다.</p>
+          </div>
+          <div class="rules-section">
+            <h3>📏 축(Axis) 이해하기</h3>
+            <ul>
+              <li><strong>X축 (가로):</strong> 오른쪽 → 양수(+), 왼쪽 → 음수(−)</li>
+              <li><strong>Y축 (세로):</strong> 위쪽 → 양수(+), 아래쪽 → 음수(−)</li>
+              <li><strong>원점:</strong> X축과 Y축이 만나는 점 (0, 0)</li>
+            </ul>
+          </div>
+          <div class="rules-section">
+            <h3>🗺️ 4개의 사분면</h3>
+            <div class="coord-diagram">
+              <div class="diagram-quadrants">
+                <div class="dq dq2">
+                  <strong>제2사분면</strong><br/>x &lt; 0, y &gt; 0<br/><em>(−, +)</em>
+                </div>
+                <div class="dq dq1">
+                  <strong>제1사분면</strong><br/>x &gt; 0, y &gt; 0<br/><em>(+, +)</em>
+                </div>
+                <div class="dq dq3">
+                  <strong>제3사분면</strong><br/>x &lt; 0, y &lt; 0<br/><em>(−, −)</em>
+                </div>
+                <div class="dq dq4">
+                  <strong>제4사분면</strong><br/>x &gt; 0, y &lt; 0<br/><em>(+, −)</em>
+                </div>
+              </div>
+              <div class="diagram-axes">
+                <div class="diag-x-axis">X축 →</div>
+                <div class="diag-y-axis">↑ Y축</div>
+                <div class="diag-origin">O(0,0)</div>
+              </div>
+            </div>
+          </div>
+          <div class="rules-section">
+            <h3>✏️ 좌표 읽는 법</h3>
+            <ol>
+              <li>먼저 <strong>X축 값</strong>(가로)을 읽습니다.</li>
+              <li>그 다음 <strong>Y축 값</strong>(세로)을 읽습니다.</li>
+              <li>예: 오른쪽으로 3칸, 위로 2칸 → <code>(3, 2)</code></li>
+              <li>예: 왼쪽으로 1칸, 아래로 4칸 → <code>(−1, −4)</code></li>
+            </ol>
+            <div class="example-coords">
+              <span class="ex-coord ex-q1">(3, 2) → 1사분면</span>
+              <span class="ex-coord ex-q2">(−2, 3) → 2사분면</span>
+              <span class="ex-coord ex-q3">(−1, −4) → 3사분면</span>
+              <span class="ex-coord ex-q4">(4, −1) → 4사분면</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODAL: 관리자 콘솔
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-admin" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+    <div class="modal-panel wood-panel modal-large">
+      <div class="modal-header modal-header-admin">
+        <h2 class="modal-title" id="admin-title">⚙️ 관리자 콘솔 — 전광판</h2>
+        <button class="modal-close" onclick="UI.closeModal('modal-admin')" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body admin-body">
+        <div class="admin-stats-bar">
+          <div class="admin-stat">
+            <span class="stat-icon">🏠</span>
+            <span class="stat-label">진행 중 방</span>
+            <span class="stat-value" id="admin-rooms-count">0</span>
+          </div>
+          <div class="admin-stat">
+            <span class="stat-icon">👥</span>
+            <span class="stat-label">접속 중 인원</span>
+            <span class="stat-value" id="admin-players-count">0</span>
+          </div>
+          <div class="admin-stat">
+            <span class="stat-icon">🎮</span>
+            <span class="stat-label">오늘 완료된 게임</span>
+            <span class="stat-value" id="admin-games-today">0</span>
+          </div>
+          <div class="admin-stat">
+            <span class="stat-icon">🔴</span>
+            <span class="stat-label">서버 상태</span>
+            <span class="stat-value stat-online" id="admin-server-status">● 정상</span>
+          </div>
+        </div>
+        <div class="admin-section-title">📋 현재 진행 중인 게임 방</div>
+        <div class="admin-rooms-grid" id="admin-rooms-grid">
+          <!-- JS 동적 생성: 방 카드 그리드 -->
+          <div class="admin-empty-msg" id="admin-empty-msg">
+            <span>🪵</span><br/>현재 진행 중인 방이 없습니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODAL: 방 만들기
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-create-room" role="dialog" aria-modal="true" aria-labelledby="create-room-title">
+    <div class="modal-panel wood-panel modal-medium">
+      <div class="modal-header">
+        <h2 class="modal-title" id="create-room-title">➕ 새 방 만들기</h2>
+        <button class="modal-close" onclick="UI.closeModal('modal-create-room')" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="input-room-name">🏠 방 이름</label>
+          <input type="text" id="input-room-name" class="wood-input" placeholder="예: 우리반 좌표 배틀" maxlength="20" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">👥 최대 인원</label>
+          <div class="player-count-selector">
+            <button class="count-btn active" id="cnt-2" onclick="UI.selectPlayerCount(2)">2명</button>
+            <button class="count-btn" id="cnt-3" onclick="UI.selectPlayerCount(3)">3명</button>
+            <button class="count-btn" id="cnt-4" onclick="UI.selectPlayerCount(4)">4명</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🔒 방 공개 여부</label>
+          <div class="toggle-group">
+            <label class="toggle-label">
+              <input type="radio" name="room-privacy" value="public" id="room-public" checked />
+              <span>🌍 공개</span>
+            </label>
+            <label class="toggle-label">
+              <input type="radio" name="room-privacy" value="private" id="room-private" />
+              <span>🔐 비공개</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="password-group" style="display:none;">
+          <label class="form-label" for="input-room-pw">🔑 비밀번호 (4자리)</label>
+          <input type="text" id="input-room-pw" class="wood-input" placeholder="숫자 4자리" maxlength="4" pattern="\d{4}" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="UI.closeModal('modal-create-room')">취소</button>
+          <button class="btn btn-primary" id="btn-create-room-confirm" onclick="UI.createRoom()">🚀 방 만들기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODAL: 관전 모드 확인
+  ══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-spectate" role="dialog" aria-modal="true" aria-labelledby="spectate-title">
+    <div class="modal-panel wood-panel modal-small">
+      <div class="modal-header">
+        <h2 class="modal-title" id="spectate-title">👁️ 관전 모드</h2>
+        <button class="modal-close" onclick="UI.closeModal('modal-spectate')" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="spectate-room-info" id="spectate-room-info">방 이름</p>
+        <p class="spectate-desc">이 방을 <strong>관전 모드</strong>로 입장하시겠습니까?<br/>관전 중에는 채팅과 게임 현황을 실시간으로 볼 수 있습니다.</p>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="UI.closeModal('modal-spectate')">취소</button>
+          <button class="btn btn-primary" id="btn-spectate-confirm" onclick="UI.enterSpectateMode()">👁️ 관전 입장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TOAST 알림
+  ══════════════════════════════════════════════ -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ══════════════════════════════════════════════
+       JavaScript
+  ══════════════════════════════════════════════ -->
+  <script src="app.js"></script>
+</body>
+</html>
