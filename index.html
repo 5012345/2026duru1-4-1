@@ -24,7 +24,7 @@
   <section class="screen active" id="screen-lobby">
     <div class="lobby-wrapper">
 
-      <!-- 게임 타이틀 -->
+      <!-- 게임 타이틀 (전 폭 차지) -->
       <header class="game-title-header">
         <div class="title-icon">🗺️</div>
         <h1 class="game-title">픽셀 이스케이프</h1>
@@ -32,75 +32,80 @@
         <div class="title-divider"></div>
       </header>
 
-      <!-- 중앙 로그인 카드 -->
-      <div class="lobby-card wood-panel">
-        <div class="card-header-strip">🏠 모험가 등록소</div>
+      <!-- 카드 + 사이드 버튼 가로 배치 래퍼 -->
+      <div class="lobby-content-row">
 
-        <!-- 닉네임 입력 -->
-        <div class="form-group">
-          <label class="form-label" for="input-nickname">🪄 모험가 이름</label>
-          <div class="input-wrapper">
-            <input
-              type="text"
-              id="input-nickname"
-              class="wood-input"
-              placeholder="닉네임을 입력하세요 (2~8자)"
-              maxlength="8"
-            />
-            <span class="input-icon">✏️</span>
+        <!-- 중앙 로그인 카드 -->
+        <div class="lobby-card wood-panel">
+          <div class="card-header-strip">🏠 모험가 등록소</div>
+
+          <!-- 닉네임 입력 -->
+          <div class="form-group">
+            <label class="form-label" for="input-nickname">🪄 모험가 이름</label>
+            <div class="input-wrapper">
+              <input
+                type="text"
+                id="input-nickname"
+                class="wood-input"
+                placeholder="닉네임을 입력하세요 (2~8자)"
+                maxlength="8"
+              />
+              <span class="input-icon">✏️</span>
+            </div>
+          </div>
+
+          <!-- 아바타 선택 -->
+          <div class="form-group">
+            <label class="form-label">🧑 아바타 선택</label>
+            <div class="avatar-selector">
+              <label class="avatar-option" id="avatar-opt-male">
+                <input type="radio" name="avatar" value="male" id="avatar-male" checked />
+                <div class="avatar-card">
+                  <img src="assets/avatar_male.png" alt="남자 아바타" class="avatar-img" />
+                  <span class="avatar-label">🧒 탐험가</span>
+                </div>
+              </label>
+              <label class="avatar-option" id="avatar-opt-female">
+                <input type="radio" name="avatar" value="female" id="avatar-female" />
+                <div class="avatar-card">
+                  <img src="assets/avatar_female.png" alt="여자 아바타" class="avatar-img" />
+                  <span class="avatar-label">👧 마법사</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 닉네임 + 승수 뱃지 미리보기 -->
+          <div class="badge-preview" id="badge-preview">
+            <span class="badge-nickname" id="preview-nickname">모험가</span>
+            <span class="badge-wins" id="preview-wins">🏆 0</span>
+          </div>
+
+          <!-- 버튼들 -->
+          <div class="lobby-buttons" style="display: flex; gap: 12px; width: 100%;">
+            <button class="btn btn-primary" id="btn-enter-lobby" onclick="UI.enterLobby()" style="flex: 1;">
+              🚪 대기실 입장
+            </button>
+            <button class="btn btn-secondary" id="btn-ai-match" onclick="UI.openAIMatchModal()" style="flex: 1;">
+              🤖 AI와 대전
+            </button>
           </div>
         </div>
 
-        <!-- 아바타 선택 -->
-        <div class="form-group">
-          <label class="form-label">🧑 아바타 선택</label>
-          <div class="avatar-selector">
-            <label class="avatar-option" id="avatar-opt-male">
-              <input type="radio" name="avatar" value="male" id="avatar-male" checked />
-              <div class="avatar-card">
-                <img src="assets/avatar_male.png" alt="남자 아바타" class="avatar-img" />
-                <span class="avatar-label">🧒 탐험가</span>
-              </div>
-            </label>
-            <label class="avatar-option" id="avatar-opt-female">
-              <input type="radio" name="avatar" value="female" id="avatar-female" />
-              <div class="avatar-card">
-                <img src="assets/avatar_female.png" alt="여자 아바타" class="avatar-img" />
-                <span class="avatar-label">👧 마법사</span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- 닉네임 + 승수 뱃지 미리보기 -->
-        <div class="badge-preview" id="badge-preview">
-          <span class="badge-nickname" id="preview-nickname">모험가</span>
-          <span class="badge-wins" id="preview-wins">🏆 0</span>
-        </div>
-
-        <!-- 버튼들 -->
-        <div class="lobby-buttons" style="display: flex; gap: 12px; width: 100%;">
-          <button class="btn btn-primary" id="btn-enter-lobby" onclick="UI.enterLobby()" style="flex: 1;">
-            🚪 대기실 입장
+        <!-- 우측 세로 메뉴 버튼들 -->
+        <div class="side-nav">
+          <button class="btn-nav" id="btn-rules" onclick="UI.openModal('modal-rules')">
+            📜<span>게임 규칙서</span>
           </button>
-          <button class="btn btn-secondary" id="btn-ai-match" onclick="UI.openAIMatchModal()" style="flex: 1;">
-            🤖 AI와 대전
+          <button class="btn-nav" id="btn-shop" onclick="UI.navigateTo('screen-shop')">
+            🛍️<span>아바타 상점</span>
+          </button>
+          <button class="btn-nav btn-nav-admin" id="btn-admin" onclick="UI.openModal('modal-admin')">
+            ⚙️<span>관리자 콘솔</span>
           </button>
         </div>
-      </div>
 
-      <!-- 하단 메뉴 버튼들 -->
-      <div class="bottom-nav">
-        <button class="btn-nav" id="btn-rules" onclick="UI.openModal('modal-rules')">
-          📜 게임 규칙서
-        </button>
-        <button class="btn-nav" id="btn-shop" onclick="UI.navigateTo('screen-shop')">
-          🛍️ 아바타 상점
-        </button>
-        <button class="btn-nav btn-nav-admin" id="btn-admin" onclick="UI.openModal('modal-admin')">
-          ⚙️ 관리자 콘솔
-        </button>
-      </div>
+      </div><!-- /.lobby-content-row -->
 
     </div>
   </section>
