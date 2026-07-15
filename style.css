@@ -1877,3 +1877,44 @@ body {
   50% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
+
+/* 아바타 미리보기 장착 오버레이 데코레이션 */
+.preview-decor-overlay {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: all 0.25s ease-in-out;
+}
+
+/* 머리 영역 (헤어 아이템 전용 이펙트) */
+.preview-decor-overlay.hair {
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.6rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  animation: float 2s ease-in-out infinite;
+}
+
+/* 몸 영역 (의상 아이템 전용 이펙트) */
+.preview-decor-overlay.costume {
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.7rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* 발밑 영역 (슬라이더 및 베이스) */
+.preview-decor-overlay.slider {
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.4rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  opacity: 0.9;
+}
+
