@@ -55,7 +55,29 @@ const GameState = {
 
   init(players, isAI) {
     this.board = Array.from({ length: 11 }, () => Array(11).fill(null));
-    this.players = players;
+    
+    // 각 플레이어별 적용된 스킨의 avatarUrl 주입
+    this.players = players.map(p => {
+      if (p.isAI) {
+        let aiAvatar = 'male';
+        let aiHair = 'hair_normal';
+        let aiCostume = 'costume_normal';
+        if (p.difficulty === 'hard') {
+          aiHair = 'hair_warrior';
+          aiCostume = 'costume_armor';
+          aiAvatar = 'male';
+        } else if (p.difficulty === 'normal') {
+          aiHair = 'hair_wizard';
+          aiCostume = 'costume_robe';
+          aiAvatar = 'female';
+        }
+        p.avatarUrl = UI.getAvatarImageBySpec(aiAvatar, aiHair, aiCostume);
+      } else {
+        p.avatarUrl = UI.getEquippedAvatarImage(PlayerState.avatar);
+      }
+      return p;
+    });
+
     this.currentTurn = 0;
     this.isGameOver = false;
     this.isAIMode = isAI;
@@ -326,7 +348,7 @@ const UI = {
     PlayerState.nickname = nick;
     PlayerState.avatar = document.querySelector('input[name="avatar"]:checked')?.value ?? 'male';
     document.getElementById('header-nickname').textContent = nick;
-    document.getElementById('header-avatar-img').src = `assets/avatar_${PlayerState.avatar}.png`;
+    document.getElementById('header-avatar-img').src = this.getEquippedAvatarImage(PlayerState.avatar);
     document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
     this.showToast(`👋 환영합니다, ${nick}!`);
     this.navigateTo('screen-room-list');
@@ -417,92 +439,97 @@ const UI = {
 
   selectItemForPreview(cat, item) { PreviewState[cat] = item.id; this.renderShop(cat); this.updateAvatarPreview(); },
 
+  getAvatarImageBySpec(gender, hair, costume) {
+    // 1. 완벽한 세트 매핑
+    if (hair === 'hair_warrior' && costume === 'costume_armor') {
+      return `assets/avatar_${gender}_warrior_armor.png`;
+    }
+    if (hair === 'hair_wizard' && costume === 'costume_robe') {
+      return `assets/avatar_${gender}_wizard_robe.png`;
+    }
+    if (hair === 'hair_crown') {
+      return `assets/avatar_${gender}_crown_normal.png`;
+    }
+    
+    // 2. 단품 장착 시에도 최적의 이미지로 fallback
+    if (hair === 'hair_warrior') {
+      return `assets/avatar_${gender}_warrior_armor.png`; // 불꽃머리 우선
+    }
+    if (costume === 'costume_armor') {
+      return `assets/avatar_${gender}_warrior_armor.png`; // 갑옷 우선
+    }
+    if (hair === 'hair_wizard') {
+      return `assets/avatar_${gender}_wizard_robe.png`; // 마법머리 우선
+    }
+    if (costume === 'costume_robe') {
+      return `assets/avatar_${gender}_wizard_robe.png`; // 로브 우선
+    }
+    
+    return `assets/avatar_${gender}.png`;
+  },
+
+  getEquippedAvatarImage(gender) {
+    const hair = ShopData.hair.find(i => i.equipped)?.id || 'hair_normal';
+    const costume = ShopData.costume.find(i => i.equipped)?.id || 'costume_normal';
+    return this.getAvatarImageBySpec(gender, hair, costume);
+  },
+
   updateAvatarPreview() {
     const el = document.getElementById('shop-preview-avatar');
     const auraEl = document.getElementById('preview-aura-effect');
     
-    // 오버레이 엘리먼트 가져오기 (없으면 동적 생성)
-    let hairOverlay = document.getElementById('preview-hair-overlay');
-    let costumeOverlay = document.getElementById('preview-costume-overlay');
-    let sliderOverlay = document.getElementById('preview-slider-overlay');
+    // 현재 선택한 스킨 스펙에 맞게 통째로 바뀐 아바타 그래픽을 로드
+    const currentHair = PreviewState.hair;
+    const currentCostume = PreviewState.costume;
     
+    if (el) {
+      el.src = this.getAvatarImageBySpec(PlayerState.avatar, currentHair, currentCostume);
+      el.style.filter = 'none'; // 기존 CSS 필터 제거
+    }
+    
+    // 이모지 오버레이는 이제 아바타 자체의 외형으로 완전히 녹아들었으므로 겹쳐 그리지 않음
+    const hairOverlay = document.getElementById('preview-hair-overlay');
+    const costumeOverlay = document.getElementById('preview-costume-overlay');
+    const sliderOverlay = document.getElementById('preview-slider-overlay');
+    
+    // 동적 생성 보장
     const container = document.querySelector('.preview-avatar-container');
     if (container) {
       if (!hairOverlay) {
-        hairOverlay = document.createElement('div');
-        hairOverlay.id = 'preview-hair-overlay';
-        hairOverlay.className = 'preview-decor-overlay hair';
-        container.appendChild(hairOverlay);
+        let ho = document.createElement('div'); ho.id = 'preview-hair-overlay'; ho.className = 'preview-decor-overlay hair';
+        container.appendChild(ho);
       }
       if (!costumeOverlay) {
-        costumeOverlay = document.createElement('div');
-        costumeOverlay.id = 'preview-costume-overlay';
-        costumeOverlay.className = 'preview-decor-overlay costume';
-        container.appendChild(costumeOverlay);
+        let co = document.createElement('div'); co.id = 'preview-costume-overlay'; co.className = 'preview-decor-overlay costume';
+        container.appendChild(co);
       }
       if (!sliderOverlay) {
-        sliderOverlay = document.createElement('div');
-        sliderOverlay.id = 'preview-slider-overlay';
-        sliderOverlay.className = 'preview-decor-overlay slider';
-        container.appendChild(sliderOverlay);
+        let so = document.createElement('div'); so.id = 'preview-slider-overlay'; so.className = 'preview-decor-overlay slider';
+        container.appendChild(so);
       }
     }
     
-    if (el) el.src = `assets/avatar_${PlayerState.avatar}.png`;
+    if (document.getElementById('preview-hair-overlay')) document.getElementById('preview-hair-overlay').textContent = '';
+    if (document.getElementById('preview-costume-overlay')) document.getElementById('preview-costume-overlay').textContent = '';
     
-    // 1. 헤어 스킨 데코레이션 & 필터 효과
-    let hairEmoji = '';
-    let filterString = '';
-    const hairId = PreviewState.hair;
-    if (hairId === 'hair_warrior') {
-      hairEmoji = '🔥';
-      filterString += 'drop-shadow(0 0 6px #e74c3c) ';
-    } else if (hairId === 'hair_wizard') {
-      hairEmoji = '🔮';
-      filterString += 'drop-shadow(0 0 6px #9b59b6) ';
-    } else if (hairId === 'hair_crown') {
-      hairEmoji = '👑';
-      filterString += 'drop-shadow(0 0 4px #f1c40f) ';
+    // 슬라이더 이펙트 (발밑에 🪵/🔱/⚡가 미니 효과로 유지되게 함)
+    if (document.getElementById('preview-slider-overlay')) {
+      let sliderEmoji = '';
+      const sliderId = PreviewState.slider;
+      if (sliderId === 'slider_gold') sliderEmoji = '🔱';
+      else if (sliderId === 'slider_neon') sliderEmoji = '⚡';
+      else if (sliderId === 'slider_normal') sliderEmoji = '🪵';
+      document.getElementById('preview-slider-overlay').textContent = sliderEmoji;
     }
-    if (hairOverlay) hairOverlay.textContent = hairEmoji;
-    
-    // 2. 의상 스킨 데코레이션 & 필터 효과
-    let costumeEmoji = '';
-    const costumeId = PreviewState.costume;
-    if (costumeId === 'costume_armor') {
-      costumeEmoji = '🛡️';
-      filterString += 'contrast(1.15) brightness(0.9) saturate(0.6) ';
-    } else if (costumeId === 'costume_robe') {
-      costumeEmoji = '🧥';
-      filterString += 'saturate(1.4) ';
-    }
-    if (costumeOverlay) costumeOverlay.textContent = costumeEmoji;
-    
-    // 3. 아바타 이미지에 필터 일괄 적용
-    if (el) {
-      el.style.filter = filterString.trim() || 'none';
-    }
-    
-    // 4. 슬라이더 스킨 데코레이션
-    let sliderEmoji = '';
-    const sliderId = PreviewState.slider;
-    if (sliderId === 'slider_gold') {
-      sliderEmoji = '🔱';
-    } else if (sliderId === 'slider_neon') {
-      sliderEmoji = '⚡';
-    } else if (sliderId === 'slider_normal') {
-      sliderEmoji = '🪵';
-    }
-    if (sliderOverlay) sliderOverlay.textContent = sliderEmoji;
 
-    // 5. 오라 효과 설정
+    // 오라 효과 설정
     const aura = ShopData.aura.find(i => i.id === PreviewState.aura);
     if (auraEl) { 
       auraEl.className = 'aura-effect'; 
       if (aura?.effect) auraEl.classList.add(aura.effect); 
     }
     
-    // 6. 하단 텍스트 목록 업데이트
+    // 하단 텍스트 목록 업데이트
     const list = document.getElementById('shop-preview-items');
     if (!list) return;
     list.innerHTML = '';
@@ -541,6 +568,12 @@ const UI = {
     const activeTab = document.querySelector('.shop-tab.active');
     if (activeTab) this.renderShop(activeTab.id.replace('tab-',''));
     this.updateAvatarPreview();
+    
+    // 로비 상단 헤더 아바타도 장착 스킨으로 실시간 갱신
+    const headerImg = document.getElementById('header-avatar-img');
+    if (headerImg) {
+      headerImg.src = this.getEquippedAvatarImage(PlayerState.avatar);
+    }
   },
 
   // ── 방 목록 ───────────────────────────
@@ -661,12 +694,13 @@ const UI = {
     if (mini) mini.innerHTML = '';
     if (left) left.innerHTML = '';
     GameState.players.forEach((p, idx) => {
+      const avatarSrc = p.avatarUrl || `assets/avatar_${PlayerState.avatar}.png`;
       if (mini) {
         const el = document.createElement('div');
         el.className = `mini-card ${idx===GameState.currentTurn?'active-turn':''}`;
         el.id = `mini-card-${idx}`;
         el.style.borderColor = p.color;
-        el.innerHTML = `<img src="assets/avatar_${PlayerState.avatar}.png" class="mini-avatar">`;
+        el.innerHTML = `<img src="${avatarSrc}" class="mini-avatar">`;
         mini.appendChild(el);
       }
       if (left) {
@@ -675,7 +709,7 @@ const UI = {
         el.id = `player-card-${idx}`;
         el.innerHTML = `
           <div class="game-player-avatar-box" style="border-left:3px solid ${p.color};">
-            <img src="assets/avatar_${PlayerState.avatar}.png" class="game-player-avatar">
+            <img src="${avatarSrc}" class="game-player-avatar">
           </div>
           <div class="player-details">
             <div class="p-name">${p.isAI?'🤖 ':''}${p.name}</div>
