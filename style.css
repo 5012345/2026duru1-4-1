@@ -916,7 +916,7 @@ body {
 /* ══════════════════════════════════════════════
    SCREEN 4: GAME SCREEN & HUD — FULLSCREEN (no scroll)
    ══════════════════════════════════════════════ */
-#screen-game {
+#screen-game.active {
   overflow: hidden !important;
   padding: 8px 14px !important;
   display: flex !important;
