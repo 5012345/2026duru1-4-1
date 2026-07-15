@@ -319,7 +319,8 @@ const UI = {
     this.showToast(`🗺️ ${this.getScreenName(screenId)}`);
     if (screenId === 'screen-room-list') this.renderRooms();
     else if (screenId === 'screen-shop') {
-      this.syncPreviewWithEquipped(); this.renderShop('hair'); this.updateAvatarPreview();
+      this.syncPreviewWithEquipped();
+      this.switchShopTab('aura');
     } else if (screenId === 'screen-game') this.initGameBoard();
   },
 
@@ -522,18 +523,46 @@ const UI = {
       document.getElementById('preview-slider-overlay').textContent = sliderEmoji;
     }
 
-    // 오라 효과 설정
+    // 오라 효과 설정 및 동적 애니메이션 파티클 생성
     const aura = ShopData.aura.find(i => i.id === PreviewState.aura);
     if (auraEl) { 
       auraEl.className = 'aura-effect'; 
       if (aura?.effect) auraEl.classList.add(aura.effect); 
+      
+      // 기존 파티클 리셋
+      auraEl.innerHTML = '';
+      
+      let pClass = '';
+      if (aura?.id === 'aura_fire') pClass = 'flame';
+      else if (aura?.id === 'aura_ice') pClass = 'snow';
+      else if (aura?.id === 'aura_forest') pClass = 'leaf';
+      
+      if (pClass) {
+        for (let i = 0; i < 15; i++) {
+          const p = document.createElement('div');
+          p.className = `aura-particle ${pClass}`;
+          p.style.left = `${Math.random() * 90 + 5}%`;
+          p.style.animationDelay = `${Math.random() * 2}s`;
+          p.style.animationDuration = `${Math.random() * 1.5 + 1.2}s`;
+          
+          if (pClass === 'snow') {
+            const symbols = ['❄', '❅', '❆', '•'];
+            p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          } else if (pClass === 'leaf') {
+            // 다양한 나뭇잎 각도 및 크기
+            const scale = Math.random() * 0.4 + 0.8;
+            p.style.transform = `scale(${scale})`;
+          }
+          auraEl.appendChild(p);
+        }
+      }
     }
     
-    // 하단 텍스트 목록 업데이트
+    // 하단 텍스트 목록 업데이트 (헤어, 의상 제외하고 오라, 슬라이더만 출력)
     const list = document.getElementById('shop-preview-items');
     if (!list) return;
     list.innerHTML = '';
-    [['💇 헤어','hair'],['👕 의상','costume'],['✨ 오라','aura'],['🎚️ 슬라이더','slider']].forEach(([label,key]) => {
+    [['✨ 오라','aura'],['🎚️ 슬라이더','slider']].forEach(([label,key]) => {
       const item = ShopData[key].find(i => i.id === PreviewState[key]);
       if (!item) return;
       const st = item.purchased

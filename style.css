@@ -886,26 +886,114 @@ body {
   height: 100%;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.6;
+  overflow: hidden;
 }
 
-/* Aura variants */
+/* 1. 이그니스 오라 (이글거리는 불꽃) */
 .aura-fire {
-  background: radial-gradient(circle, rgba(230, 126, 34, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(230, 126, 34, 0.25) 0%, transparent 80%);
   animation: auraPulse 1.5s ease-in-out infinite alternate;
 }
+.aura-particle.flame {
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, #ff5722 20%, #ffeb3b 80%);
+  border-radius: 50%;
+  filter: blur(1px) drop-shadow(0 0 6px #ff5722);
+  opacity: 0;
+  animation: ignisFlame 1.8s ease-out infinite;
+}
+
+@keyframes ignisFlame {
+  0% {
+    transform: translateY(0) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-50px) scale(1.1) rotate(45deg);
+  }
+  100% {
+    transform: translateY(-110px) scale(0.3) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+/* 2. 프로스트 오라 (눈보라) */
 .aura-ice {
-  background: radial-gradient(circle, rgba(52, 152, 219, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(52, 152, 219, 0.25) 0%, transparent 80%);
   animation: auraPulse 2s ease-in-out infinite alternate;
 }
+.aura-particle.snow {
+  position: absolute;
+  top: -10px;
+  color: #e0f7fa;
+  font-family: sans-serif;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  opacity: 0;
+  animation: frostSnow 2.2s linear infinite;
+}
+
+@keyframes frostSnow {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  90% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-40px, 160px) rotate(360deg) scale(1);
+    opacity: 0;
+  }
+}
+
+/* 3. 네이처 오라 (나뭇잎) */
 .aura-forest {
-  background: radial-gradient(circle, rgba(46, 204, 113, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(46, 204, 113, 0.25) 0%, transparent 80%);
   animation: auraPulse 1.8s ease-in-out infinite alternate;
+}
+.aura-particle.leaf {
+  position: absolute;
+  top: -10px;
+  width: 10px;
+  height: 8px;
+  background: #4caf50;
+  border-radius: 12px 0 12px 0;
+  filter: drop-shadow(0 2px 3px rgba(46, 204, 113, 0.4));
+  opacity: 0;
+  animation: natureLeaf 2.5s ease-in-out infinite;
+}
+
+@keyframes natureLeaf {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(50px, 160px) rotate(720deg) scale(0.5);
+    opacity: 0;
+  }
 }
 
 @keyframes auraPulse {
-  from { transform: scale(0.9); opacity: 0.4; }
-  to { transform: scale(1.1); opacity: 0.8; }
+  from { transform: scale(0.92); opacity: 0.45; }
+  to { transform: scale(1.08); opacity: 0.75; }
 }
 
 .preview-name {

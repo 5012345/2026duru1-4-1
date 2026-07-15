@@ -170,13 +170,7 @@
 
       <!-- 상점 탭 -->
       <div class="shop-tabs" role="tablist">
-        <button class="shop-tab active" id="tab-hair" role="tab" aria-selected="true" onclick="UI.switchShopTab('hair')">
-          💇 헤어
-        </button>
-        <button class="shop-tab" id="tab-costume" role="tab" aria-selected="false" onclick="UI.switchShopTab('costume')">
-          👗 의상
-        </button>
-        <button class="shop-tab" id="tab-aura" role="tab" aria-selected="false" onclick="UI.switchShopTab('aura')">
+        <button class="shop-tab active" id="tab-aura" role="tab" aria-selected="true" onclick="UI.switchShopTab('aura')">
           ✨ 오라
         </button>
         <button class="shop-tab" id="tab-slider" role="tab" aria-selected="false" onclick="UI.switchShopTab('slider')">
@@ -186,18 +180,8 @@
 
       <!-- 상점 아이템 그리드 -->
       <div class="shop-content-area">
-        <!-- 헤어 탭 -->
-        <div class="shop-panel active" id="panel-hair">
-          <div class="shop-items-grid" id="grid-hair">
-            <!-- JS로 동적 생성 -->
-          </div>
-        </div>
-        <!-- 의상 탭 -->
-        <div class="shop-panel" id="panel-costume">
-          <div class="shop-items-grid" id="grid-costume"></div>
-        </div>
         <!-- 오라 탭 -->
-        <div class="shop-panel" id="panel-aura">
+        <div class="shop-panel active" id="panel-aura">
           <div class="shop-items-grid" id="grid-aura"></div>
         </div>
         <!-- 슬라이더 스킨 탭 -->
