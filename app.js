@@ -72,6 +72,7 @@ const GameState = {
   lastX: null,
   lastY: null,
   isFirstMove: true,
+  rewardSettled: false,
 
   coordToIdx(v) { return v + 5; },
   idxToCoord(i) { return i - 5; },
@@ -89,6 +90,7 @@ const GameState = {
     this.lastX = null;
     this.lastY = null;
     this.isFirstMove = true;
+    this.rewardSettled = false;
   },
 
   canPlace(x, y) {
@@ -502,8 +504,6 @@ const UI = {
 
   startAIMatch() {
     this.closeModal('modal-ai-match');
-    PlayerState.coins += 1;
-    this.updateCoinsDisplay();
     const diffLabel = { easy:'초급', normal:'중급', hard:'고급' }[AIMatchConfig.difficulty];
     const players = [{ name: PlayerState.nickname, color: PLAYER_COLORS[0], isAI: false }];
     for (let i = 1; i <= AIMatchConfig.aiCount; i++)
@@ -515,7 +515,7 @@ const UI = {
       status:'게임중', isPrivate:false, players: players.map(p=>p.name)
     };
     GameState.init(players, true);
-    this.showToast(`⚔️ 대전 참가! 🪙 1코인 획득!`);
+    this.showToast(`⚔️ AI 대전을 시작합니다!`);
     this.navigateTo('screen-game');
   },
 
@@ -657,12 +657,10 @@ const UI = {
     }
 
     if (!db) {
-      PlayerState.coins += 1;
-      this.updateCoinsDisplay();
       PlayerState.currentRoom = room;
       const players = room.players.map((n, i) => ({ name:n, color:PLAYER_COLORS[i%PLAYER_COLORS.length], isAI:false }));
       GameState.init(players, false);
-      this.showToast(`🚪 참가 코인 1코인 획득!`);
+      this.showToast(`🚪 대전에 입장했습니다!`);
       this.navigateTo('screen-game');
       return;
     }
@@ -689,8 +687,6 @@ const UI = {
       } else if (!committed) {
         this.showToast('⚠️ 방의 정원이 가득 찼거나 상태가 변경되었습니다.');
       } else {
-        PlayerState.coins += 1;
-        this.updateCoinsDisplay();
         const joinedRoom = snapshot.val();
         PlayerState.currentRoom = { id: room.id, ...joinedRoom };
         this.setupMultiplayerGame(room.id, joinedRoom, false);
@@ -724,9 +720,6 @@ const UI = {
     const pw = document.getElementById('input-room-pw')?.value;
     if (isPrivate && (!pw || pw.length !== 4)) { this.showToast('⚠️ 비공개 방은 4자리 비밀번호 필요!'); return; }
 
-    PlayerState.coins += 1;
-    this.updateCoinsDisplay();
-
     const roomId = `room_${Date.now()}`;
     const roomData = {
       name: name,
@@ -755,7 +748,7 @@ const UI = {
       this.closeModal('modal-create-room');
       PlayerState.currentRoom = { id: roomId, ...roomData };
       GameState.init([{name:PlayerState.nickname, color:PLAYER_COLORS[0], isAI:false}], false);
-      this.showToast(`🚀 방 생성! 참가 코인 1코인 획득! (오프라인)`);
+      this.showToast(`🚀 방이 정상적으로 생성되었습니다! (오프라인)`);
       this.navigateTo('screen-game');
     }
   },
@@ -767,8 +760,8 @@ const UI = {
         board: Array(11).fill(null).map(() => Array(11).fill(null)),
         currentTurn: 0,
         players: [
-          { name: PlayerState.nickname, color: PLAYER_COLORS[0], skin: PlayerState.markerSkin, uid: PlayerState.uid },
-          { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null }
+          { name: PlayerState.nickname, color: PLAYER_COLORS[0], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins },
+          { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null, wins: 0 }
         ],
         playerUids: { [PlayerState.uid]: 0 },
         lastX: null,
@@ -783,7 +776,7 @@ const UI = {
     } else {
       gameRef.transaction(game => {
         if (!game) return null;
-        game.players[1] = { name: PlayerState.nickname, color: PLAYER_COLORS[1], skin: PlayerState.markerSkin, uid: PlayerState.uid };
+        game.players[1] = { name: PlayerState.nickname, color: PLAYER_COLORS[1], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins };
         if (!game.playerUids) game.playerUids = {};
         game.playerUids[PlayerState.uid] = 1;
         game.turnEndTime = Date.now() + 30000;
@@ -823,11 +816,55 @@ const UI = {
       this.updateCoordDisplay();
       this.drawGrid();
 
-      this.syncTurnTimer(game.turnEndTime, game.currentTurn);
+      const hasOpponent = game.players[1] && game.players[1].uid !== null;
+      if (hasOpponent) {
+        this.syncTurnTimer(game.turnEndTime, game.currentTurn);
+      } else {
+        if (GameState.timerInterval) {
+          clearInterval(GameState.timerInterval);
+          GameState.timerInterval = null;
+        }
+        const timerEl = document.getElementById('timer-value');
+        if (timerEl) timerEl.textContent = '⏱️';
+      }
 
-      if (game.players[1] && game.players[1].uid && !GameState.isGameOver) {
+      if (hasOpponent && !GameState.isGameOver) {
         const hudRn = document.getElementById('hud-room-name');
         if (hudRn) hudRn.textContent = PlayerState.currentRoom.name;
+      }
+
+      if (game.isGameOver && !GameState.rewardSettled) {
+        GameState.rewardSettled = true;
+        const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+        if (myIndex !== -1) {
+          const isP0Win = this.checkWinSimulate(game.board, 0);
+          const isP1Win = this.checkWinSimulate(game.board, 1);
+          let isWinner = false;
+          let isDraw = false;
+
+          if (isP0Win && myIndex === 0) isWinner = true;
+          else if (isP1Win && myIndex === 1) isWinner = true;
+          else if (!isP0Win && !isP1Win) {
+            const isFull = game.board.every(row => row.every(c => c !== null));
+            if (isFull) isDraw = true;
+          }
+
+          if (isWinner) {
+            PlayerState.wins++;
+            PlayerState.coins += 3;
+            this.showToast('🏆 대승리! 🪙 3코인 획득! (참가 보상 포함 총 3코인)');
+          } else if (isDraw) {
+            PlayerState.coins += 1;
+            this.showToast('🤝 무승부! 🪙 1코인 획득! (참가 보상)');
+          } else {
+            PlayerState.coins += 1;
+            this.showToast('💀 패배… 🪙 1코인 획득! (참가 보상)');
+          }
+          this.updateCoinsDisplay();
+          
+          const winsEl = document.getElementById('header-wins');
+          if (winsEl) winsEl.textContent = `🏆 ${PlayerState.wins}`;
+        }
       }
     });
 
@@ -915,6 +952,9 @@ const UI = {
     if (mini) mini.innerHTML = '';
     if (left) left.innerHTML = '';
     GameState.players.forEach((p, idx) => {
+      if (!GameState.isAIMode && p.uid === null) return;
+      const playerWins = p.uid === PlayerState.uid ? PlayerState.wins : (p.wins || 0);
+
       if (mini) {
         const el = document.createElement('div');
         el.className = `mini-card ${idx===GameState.currentTurn?'active-turn':''}`;
@@ -927,11 +967,11 @@ const UI = {
         el.className = `game-player-card ${idx===GameState.currentTurn?'active-turn':''}`;
         el.innerHTML = `
           <div class="game-player-avatar-box" style="border-left:3px solid ${p.color}; background-color: var(--wood-darkest); color: ${p.color}; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 4px;">
-            ${p.name[0]}
+            ${p.name[0] || '?'}
           </div>
           <div class="player-details">
             <div class="p-name">${p.isAI?'🤖 ':''}${p.name}</div>
-            <div class="p-score" id="score-${idx}">🏆 0승</div>
+            <div class="p-score" id="score-${idx}">🏆 ${playerWins}승</div>
           </div>`;
         left.appendChild(el);
       }
@@ -1064,12 +1104,17 @@ const UI = {
         if (!GameState.isAIMode) {
           PlayerState.coins += 3;
           this.updateCoinsDisplay();
-          this.addLog(`🏆 ${p.name} 승리! 🪙 3코인 획득!`, 'log-system');
+          this.addLog(`🏆 ${p.name} 승리! 🪙 3코인 획득! (참가 보상 포함 총 3코인)`, 'log-system');
         } else {
           this.addLog(`🏆 ${p.name} 승리! (AI 대전은 승리 코인이 지급되지 않습니다.)`, 'log-system');
         }
       } else {
         this.addLog(`🏆 ${p.name} 승리!`, 'log-system');
+        if (!GameState.isAIMode) {
+          PlayerState.coins += 1;
+          this.updateCoinsDisplay();
+          this.addLog(`🤝 참가 보상 🪙 1코인 획득!`, 'log-system');
+        }
       }
       this.showToast(`🏆 ${p.name} 승리!`);
       this.drawGrid(playerIdx);
@@ -1079,6 +1124,11 @@ const UI = {
       GameState.isGameOver = true;
       this.addLog('🤝 무승부!', 'log-system');
       this.showToast('🤝 무승부!');
+      if (!GameState.isAIMode) {
+        PlayerState.coins += 1;
+        this.updateCoinsDisplay();
+        this.addLog(`🤝 참가 보상 🪙 1코인 획득!`, 'log-system');
+      }
       return;
     }
     this.advanceTurn();
