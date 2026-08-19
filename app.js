@@ -126,11 +126,6 @@ const GameState = {
         if (this.isValidMove(x, y)) moves.push([r, c]);
       }
     }
-    if (moves.length === 0) {
-      for (let r = 0; r < 11; r++)
-        for (let c = 0; c < 11; c++)
-          if (this.board[r][c] === null) moves.push([r, c]);
-    }
     return moves;
   }
 };
@@ -165,63 +160,97 @@ const AIEngine = {
     return null;
   },
 
-  bestStrategicCell(playerIdx, validMoves) {
-    if (!validMoves.length) return null;
-    const scored = validMoves.map(([r, c]) => {
-      let score = 0;
-      const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-      for (const [dr, dc] of dirs) {
-        for (let s = -2; s <= 0; s++) {
-          const win = [];
-          let valid = true;
-          for (let k = 0; k < 3; k++) {
-            const nr = r + (s+k)*dr, nc = c + (s+k)*dc;
-            if (nr < 0 || nr > 10 || nc < 0 || nc > 10) { valid = false; break; }
-            win.push(GameState.board[nr][nc]);
-          }
-          if (!valid) continue;
-          const my = win.filter(v => v === playerIdx).length;
-          const empty = win.filter(v => v === null).length;
-          if (my + empty === 3) score += my * my * 15;
+  evaluateCellForHard(r, c, aiPlayerIdx) {
+    let score = 0;
+    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    for (const [dr, dc] of dirs) {
+      for (let s = -2; s <= 0; s++) {
+        const win = [];
+        let valid = true;
+        for (let k = 0; k < 3; k++) {
+          const nr = r + (s+k)*dr, nc = c + (s+k)*dc;
+          if (nr < 0 || nr > 10 || nc < 0 || nc > 10) { valid = false; break; }
+          if (nr === r && nc === c) win.push(aiPlayerIdx);
+          else win.push(GameState.board[nr][nc]);
         }
+        if (!valid) continue;
+
+        const aiCount = win.filter(v => v === aiPlayerIdx).length;
+        let oppCount = 0;
+        for (let pIdx = 0; pIdx < GameState.players.length; pIdx++) {
+          if (pIdx === aiPlayerIdx) continue;
+          oppCount = Math.max(oppCount, win.filter(v => v === pIdx).length);
+        }
+        const emptyCount = win.filter(v => v === null).length;
+
+        if (aiCount === 3) score += 1000;
+        else if (aiCount === 2 && emptyCount === 1) score += 150;
+        else if (aiCount === 1 && emptyCount === 2) score += 40;
+
+        if (oppCount === 2 && emptyCount === 0) score += 600;
+        else if (oppCount === 1 && emptyCount === 1) score += 80;
       }
-      score += Math.max(0, 10 - Math.abs(r-5) - Math.abs(c-5));
-      return { r, c, score };
-    });
-    scored.sort((a, b) => b.score - a.score);
-    return [scored[0].r, scored[0].c];
+    }
+    score += Math.max(0, 10 - Math.abs(r-5) - Math.abs(c-5));
+    return score;
+  },
+
+  evaluateCellForNormal(r, c, aiPlayerIdx) {
+    let score = 0;
+    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    for (const [dr, dc] of dirs) {
+      for (let s = -2; s <= 0; s++) {
+        const win = [];
+        let valid = true;
+        for (let k = 0; k < 3; k++) {
+          const nr = r + (s+k)*dr, nc = c + (s+k)*dc;
+          if (nr < 0 || nr > 10 || nc < 0 || nc > 10) { valid = false; break; }
+          if (nr === r && nc === c) win.push(aiPlayerIdx);
+          else win.push(GameState.board[nr][nc]);
+        }
+        if (!valid) continue;
+        const aiCount = win.filter(v => v === aiPlayerIdx).length;
+        if (aiCount === 2) score += 50;
+      }
+    }
+    score += Math.max(0, 5 - Math.abs(r-5) - Math.abs(c-5));
+    return score;
   },
 
   think(aiPlayerIdx, difficulty) {
     const valid = GameState.validMoves();
     if (!valid.length) return null;
-    if (difficulty === 'easy') return valid[Math.floor(Math.random() * valid.length)];
-    if (difficulty === 'normal') {
-      const win = this.findNInARow(aiPlayerIdx, 3, valid);
-      if (win) return win;
-      for (let p = 0; p < GameState.players.length; p++) {
-        if (p === aiPlayerIdx) continue;
-        const block = this.findNInARow(p, 3, valid);
-        if (block) return block;
+
+    if (difficulty === 'easy') {
+      if (Math.random() > 0.15) {
+        return valid[Math.floor(Math.random() * valid.length)];
       }
-      return valid[Math.floor(Math.random() * valid.length)];
+      difficulty = 'normal';
     }
+
+    const winMove = this.findNInARow(aiPlayerIdx, 3, valid);
+    if (winMove) return winMove;
+
+    for (let p = 0; p < GameState.players.length; p++) {
+      if (p === aiPlayerIdx) continue;
+      const blockMove = this.findNInARow(p, 3, valid);
+      if (blockMove) return blockMove;
+    }
+
+    if (difficulty === 'normal') {
+      const scored = valid.map(([r, c]) => {
+        return { r, c, score: this.evaluateCellForNormal(r, c, aiPlayerIdx) };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      return [scored[0].r, scored[0].c];
+    }
+
     if (difficulty === 'hard') {
-      const win3 = this.findNInARow(aiPlayerIdx, 3, valid);
-      if (win3) return win3;
-      for (let p = 0; p < GameState.players.length; p++) {
-        if (p === aiPlayerIdx) continue;
-        const b3 = this.findNInARow(p, 3, valid);
-        if (b3) return b3;
-      }
-      const ext2 = this.findNInARow(aiPlayerIdx, 2, valid);
-      if (ext2) return ext2;
-      for (let p = 0; p < GameState.players.length; p++) {
-        if (p === aiPlayerIdx) continue;
-        const b2 = this.findNInARow(p, 2, valid);
-        if (b2) return b2;
-      }
-      return this.bestStrategicCell(aiPlayerIdx, valid) ?? valid[0];
+      const scored = valid.map(([r, c]) => {
+        return { r, c, score: this.evaluateCellForHard(r, c, aiPlayerIdx) };
+      });
+      scored.sort((a, b) => (b.score + Math.random() * 5) - (a.score + Math.random() * 5));
+      return [scored[0].r, scored[0].c];
     }
     return valid[Math.floor(Math.random() * valid.length)];
   }
@@ -366,12 +395,11 @@ const UI = {
     grid.innerHTML = '';
     ShopData.marker.forEach(item => {
       const card = document.createElement('div');
-      card.className = `shop-item-card${PreviewState.markerSkin===item.id?' equipped':''}`;
-      let badge = item.equipped
-        ? `<span style="position:absolute;top:4px;left:4px;background:var(--green-light);font-size:.65rem;padding:1px 4px;border-radius:4px;color:#fff;">장착됨</span>`
-        : item.purchased
-          ? `<span style="position:absolute;top:4px;left:4px;background:var(--wood-light);font-size:.65rem;padding:1px 4px;border-radius:4px;color:#fff;">보유</span>`
-          : '';
+      const isSelected = PreviewState.markerSkin === item.id;
+      card.className = `shop-item-card${isSelected ? ' selected' : ''}${item.equipped ? ' equipped' : ''}`;
+      let badge = item.purchased && !item.equipped
+        ? `<span style="position:absolute;top:4px;left:4px;background:var(--wood-light);font-size:.65rem;padding:1px 4px;border-radius:4px;color:#fff;">보유</span>`
+        : '';
       card.innerHTML = `${badge}<div class="shop-item-icon-box"><span style="font-size:2.2rem;">${item.icon}</span></div>
         <div class="shop-item-name">${item.name}</div>
         <div class="shop-item-price-tag">${item.price===0||item.purchased?'보유중':`🪙 ${item.price}`}</div>`;
@@ -624,9 +652,13 @@ const UI = {
       clearInterval(GameState.timerInterval);
       if (!p.isAI) {
         PlayerState.wins++;
-        PlayerState.coins += 3;
-        this.updateCoinsDisplay();
-        this.addLog(`🏆 ${p.name} 승리! 🪙 3코인 획득!`, 'log-system');
+        if (!GameState.isAIMode) {
+          PlayerState.coins += 3;
+          this.updateCoinsDisplay();
+          this.addLog(`🏆 ${p.name} 승리! 🪙 3코인 획득!`, 'log-system');
+        } else {
+          this.addLog(`🏆 ${p.name} 승리! (AI 대전은 승리 코인이 지급되지 않습니다.)`, 'log-system');
+        }
       } else {
         this.addLog(`🏆 ${p.name} 승리!`, 'log-system');
       }
@@ -787,6 +819,25 @@ const UI = {
     ctx.strokeStyle = 'rgba(78,181,112,0.7)'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(0, center); ctx.lineTo(size, center); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(center, 0); ctx.lineTo(center, size); ctx.stroke();
+
+    // 눈금 숫자 그리기 (수학적 좌표평면 형태)
+    ctx.fillStyle = 'rgba(217, 180, 143, 0.8)';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let v = -5; v <= 5; v++) {
+      if (v === 0) {
+        ctx.fillText('0', center - 8, center + 10);
+        continue;
+      }
+      const pos = center + (v * step);
+      // X축 눈금 숫자 (수평축 눈금 하단 배치)
+      ctx.fillText(v.toString(), pos, center + 12);
+      // Y축 눈금 숫자 (수직축 눈금 좌측 배치, 위가 양수 아래가 음수)
+      const posY = center - (v * step);
+      ctx.fillText(v.toString(), center - 12, posY);
+    }
     if (GameState.board) {
       for (let r = 0; r < 11; r++) {
         for (let c = 0; c < 11; c++) {

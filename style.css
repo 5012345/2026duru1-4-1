@@ -774,6 +774,12 @@ body {
   color: var(--gold);
 }
 
+.shop-item-card.equipped {
+  border-color: var(--green-light) !important;
+  background: rgba(46, 122, 72, 0.15);
+  box-shadow: var(--glow-green);
+}
+
 .shop-item-card.equipped::after {
   content: ' 장착됨';
   position: absolute;
@@ -785,6 +791,11 @@ body {
   padding: 1px 4px;
   border-radius: 4px;
   font-weight: 700;
+}
+
+.shop-item-card.selected {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 8px var(--gold);
 }
 
 /* Shop Preview Sidebar */
