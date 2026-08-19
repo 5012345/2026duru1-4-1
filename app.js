@@ -786,19 +786,40 @@ const UI = {
         this.bindGameRealtime(roomId, isOwner);
       });
     } else {
-      gameRef.transaction(game => {
-        if (game === null) return game;
-        game.players[1] = { name: PlayerState.nickname, color: PLAYER_COLORS[1], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins };
-        if (!game.playerUids) game.playerUids = {};
-        game.playerUids[PlayerState.uid] = 1;
-        game.turnEndTime = Date.now() + 30000;
-        return game;
-      }, (err, committed) => {
-        if (committed) {
-          this.bindGameRealtime(roomId, isOwner);
-        } else {
-          this.showToast('❌ 게임 시작 데이터 세팅 실패');
+      gameRef.once('value').then(snapshot => {
+        const game = snapshot.val();
+        if (!game) {
+          this.showToast('❌ 게임 세션을 찾을 수 없습니다.');
+          return;
         }
+
+        const updatedPlayers = [...game.players];
+        updatedPlayers[1] = {
+          name: PlayerState.nickname,
+          color: PLAYER_COLORS[1],
+          skin: PlayerState.markerSkin,
+          uid: PlayerState.uid,
+          wins: PlayerState.wins
+        };
+
+        const updatedUids = { ...game.playerUids };
+        updatedUids[PlayerState.uid] = 1;
+
+        const updates = {
+          players: updatedPlayers,
+          playerUids: updatedUids,
+          turnEndTime: Date.now() + 30000
+        };
+
+        gameRef.update(updates).then(() => {
+          this.bindGameRealtime(roomId, isOwner);
+        }).catch(err => {
+          console.error("Game Setup Update Error:", err);
+          this.showToast('❌ 게임 시작 데이터 세팅 실패');
+        });
+      }).catch(err => {
+        console.error("Game Session Read Error:", err);
+        this.showToast('❌ 게임 세션 로드 실패');
       });
     }
   },
