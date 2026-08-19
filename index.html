@@ -219,66 +219,54 @@
         <!-- ─── 중앙: 좌표 보드 ─── -->
         <div class="coordinate-board-area">
 
-          <!-- Y축 슬라이더 (왼쪽 세로) -->
-          <div class="axis-slider-container y-axis-slider-container">
-            <div class="slider-label-top">+5</div>
-            <div class="slider-track-wrapper">
-              <div class="slider-wood-track">
-                <div class="slider-tick-marks y-ticks" id="y-tick-marks"></div>
-              </div>
-              <input
-                type="range"
-                id="slider-y"
-                class="axis-slider y-slider"
-                min="-5"
-                max="5"
-                step="1"
-                value="0"
-                orient="vertical"
-                aria-label="Y축 좌표 선택"
-              />
-            </div>
-            <div class="slider-label-bottom">-5</div>
-            <div class="axis-current-val" id="y-current-val">Y: 0</div>
-          </div>
-
           <!-- 좌표평면 보드 -->
           <div class="coordinate-plane-wrapper">
             <div class="board-frame wood-panel" id="board-frame">
               <canvas id="coordinate-canvas" width="480" height="480" aria-label="좌표평면 게임 보드"></canvas>
             </div>
-            <!-- 좌표 입력 확인 영역 -->
-            <div class="coordinate-confirm-area">
-              <div class="coord-display" id="coord-display">
-                <span class="coord-label">선택 좌표:</span>
-                <span class="coord-value" id="coord-xy-value">( 0 , 0 )</span>
-              </div>
-              <button class="btn btn-confirm" id="btn-confirm-coord" disabled>
-                ✅ 이 좌표에 놓기
-              </button>
-            </div>
           </div>
 
-          <!-- X축 슬라이더 (아래쪽 가로) -->
-          <div class="axis-slider-container x-axis-slider-container">
-            <div class="slider-label-left">-5</div>
-            <div class="slider-track-wrapper">
-              <div class="slider-wood-track horizontal">
-                <div class="slider-tick-marks x-ticks" id="x-tick-marks"></div>
+          <!-- 좌표 숫자 입력 키패드 패널 (우측) -->
+          <div class="coord-keypad-panel wood-panel">
+            
+            <!-- 순서쌍 표시 영역 -->
+            <div class="coord-history-box">
+              <div class="coord-history-row prev">
+                <span class="coord-history-label">이전 위치:</span>
+                <span class="coord-history-val" id="display-prev-coord">( - , - )</span>
               </div>
-              <input
-                type="range"
-                id="slider-x"
-                class="axis-slider x-slider"
-                min="-5"
-                max="5"
-                step="1"
-                value="0"
-                aria-label="X축 좌표 선택"
-              />
+              <div class="coord-history-row current">
+                <span class="coord-history-label">현재 위치:</span>
+                <div class="coord-input-slots">
+                  <span>(</span>
+                  <span class="input-slot active" id="slot-x" onclick="UI.focusSlot('X')">ㅁ</span>
+                  <span>,</span>
+                  <span class="input-slot" id="slot-y" onclick="UI.focusSlot('Y')">ㅁ</span>
+                  <span>)</span>
+                </div>
+              </div>
             </div>
-            <div class="slider-label-right">+5</div>
-            <div class="axis-current-val" id="x-current-val">X: 0</div>
+
+            <!-- 숫자 키패드 버튼 그리드 (0~9, 클리어, 마이너스) -->
+            <div class="keypad-grid">
+              <button class="key-btn" onclick="UI.pressKey('1')">1</button>
+              <button class="key-btn" onclick="UI.pressKey('2')">2</button>
+              <button class="key-btn" onclick="UI.pressKey('3')">3</button>
+              <button class="key-btn" onclick="UI.pressKey('4')">4</button>
+              <button class="key-btn" onclick="UI.pressKey('5')">5</button>
+              <button class="key-btn" onclick="UI.pressKey('6')">6</button>
+              <button class="key-btn" onclick="UI.pressKey('7')">7</button>
+              <button class="key-btn" onclick="UI.pressKey('8')">8</button>
+              <button class="key-btn" onclick="UI.pressKey('9')">9</button>
+              <button class="key-btn key-minus" onclick="UI.pressKey('-')">−</button>
+              <button class="key-btn" onclick="UI.pressKey('0')">0</button>
+              <button class="key-btn key-clear" onclick="UI.pressKey('clear')">C</button>
+            </div>
+
+            <!-- 이 좌표에 놓기 버튼 -->
+            <button class="btn btn-confirm" id="btn-confirm-coord" onclick="UI.confirmCoord()" style="width: 100%; margin-top: 10px;" disabled>
+              ✅ 이 좌표에 놓기
+            </button>
           </div>
 
         </div>

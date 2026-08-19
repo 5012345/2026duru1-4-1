@@ -1153,25 +1153,22 @@ body {
    ══════════════════════════════════════════════ */
 .coordinate-board-area {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 52px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
   align-items: stretch;
   justify-items: stretch;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
-  padding: 8px;
+  padding: 10px;
   min-height: 0;
   overflow: hidden;
 }
 
 .coordinate-plane-wrapper {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   width: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1250,140 +1247,116 @@ body {
   transform: scale(1.05);
 }
 
-/* Axis Slider Container */
-.axis-slider-container {
+/* 키패드 및 순서쌍 입력 패널 */
+.coord-keypad-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  background: var(--wood-dark);
+  border: 4px solid var(--wood-light);
+  border-radius: 10px;
+  color: var(--white);
+  gap: 12px;
+  min-height: 0;
+  justify-content: space-between;
+}
+
+.coord-history-box {
+  background: var(--wood-darkest);
+  border: 2px solid var(--wood-medium);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coord-history-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  font-family: var(--font-game);
+  font-size: 0.95rem;
+}
+
+.coord-history-row.prev {
+  color: var(--wood-pale);
+  border-bottom: 1px dashed var(--wood-medium);
+  padding-bottom: 6px;
+}
+
+.coord-history-row.current {
+  color: var(--white);
+  font-weight: 700;
+}
+
+.coord-input-slots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.1rem;
+}
+
+.input-slot {
+  display: inline-block;
+  min-width: 32px;
+  height: 28px;
   background: var(--wood-dark);
+  border: 2px solid var(--wood-medium);
+  border-radius: 4px;
+  text-align: center;
+  line-height: 24px;
+  cursor: pointer;
+  color: var(--gold);
+  font-family: monospace;
+  transition: all 0.15s ease;
+}
+
+.input-slot.active {
+  border-color: var(--green-light);
+  background: rgba(46, 204, 113, 0.15);
+  box-shadow: var(--glow-green);
+}
+
+/* 숫자 키패드 그리드 */
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.key-btn {
+  height: 44px;
+  background: linear-gradient(to bottom, var(--wood-medium), var(--wood-dark));
   border: 2px solid var(--wood-light);
-  border-radius: 8px;
-  padding: 6px 12px;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
-}
-
-/* Vertical Y Slider */
-.y-axis-slider-container {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  flex-direction: column;
-  height: 100%;
-  width: 48px;
-  align-self: stretch;
-}
-
-/* Horizontal X Slider */
-.x-axis-slider-container {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-  flex-direction: row;
-  width: 100%;
-  height: 52px;
-}
-
-.slider-track-wrapper {
-  position: relative;
+  border-radius: 6px;
+  color: var(--white);
+  font-family: var(--font-game);
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  user-select: none;
 }
 
-.y-axis-slider-container .slider-track-wrapper {
-  height: 80%;
-  width: 20px;
-}
-
-.x-axis-slider-container .slider-track-wrapper {
-  width: 80%;
-  height: 20px;
-}
-
-.slider-wood-track {
-  position: absolute;
+.key-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
   background: var(--wood-darkest);
-  border: 1px solid var(--wood-medium);
-  border-radius: 4px;
 }
 
-.y-axis-slider-container .slider-wood-track {
-  width: 8px;
-  height: 100%;
+.key-btn.key-minus {
+  background: linear-gradient(to bottom, #d35400, #a04000);
+  border-color: #e67e22;
 }
 
-.x-axis-slider-container .slider-wood-track {
-  height: 8px;
-  width: 100%;
-}
-
-.slider-label-top, .slider-label-bottom, .slider-label-left, .slider-label-right {
-  font-family: var(--font-game);
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: var(--wood-pale);
-}
-
-.axis-current-val {
-  font-family: var(--font-game);
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--gold);
-  background: var(--wood-darkest);
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--wood-medium);
-}
-
-/* Input Range Styling overrides */
-.axis-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  outline: none;
-  cursor: pointer;
-  position: relative;
-  z-index: 2;
-  /* 태블릿: 슬라이더 드래그 시 화면 스크롤 방지 */
-  touch-action: none;
-}
-
-/* X-Slider (Horizontal) */
-.x-slider {
-  width: 100%;
-}
-
-/* Y-Slider (Vertical) */
-.y-slider {
-  transform: rotate(-90deg);
-  width: 160px;
-  position: absolute;
-}
-
-/* Slider Thumb - Wooden Handle */
-.axis-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 22px;
-  background: linear-gradient(135deg, var(--wood-warm), var(--wood-medium));
-  border: 2px solid var(--gold);
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  transition: transform 0.1s;
-}
-
-.axis-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  background: linear-gradient(135deg, var(--wood-pale), var(--wood-light));
-}
-
-/* Mozilla Firefox Support */
-.axis-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  background: linear-gradient(135deg, var(--wood-warm), var(--wood-medium));
-  border: 2px solid var(--gold);
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+.key-btn.key-clear {
+  background: linear-gradient(to bottom, #c0392b, #962d22);
+  border-color: #e74c3c;
 }
 
 /* ══════════════════════════════════════════════

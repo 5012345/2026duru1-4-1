@@ -18,7 +18,10 @@ const PlayerState = {
   currentRoom: null,
   selectedX: 0,
   selectedY: 0,
-  isSpectating: false
+  isSpectating: false,
+  inputX: 'ㅁ',
+  inputY: 'ㅁ',
+  focusedSlot: 'X'
 };
 
 const PreviewState = {
@@ -232,15 +235,16 @@ const ShopData = {
     { id: 'marker_normal', name: '기본 마커', price: 0, icon: '🔴', purchased: true, equipped: true },
     { id: 'marker_flame', name: '불꽃 마커', price: 2, icon: '🔥', purchased: false, equipped: false },
     { id: 'marker_rose', name: '무궁화 마커', price: 2, icon: '🌺', purchased: false, equipped: false },
-    { id: 'marker_star', name: '별 마커', price: 2, icon: '⭐', purchased: false, equipped: false }
+    { id: 'marker_star', name: '별 마커', price: 2, icon: '⭐', purchased: false, equipped: false },
+    { id: 'marker_water', name: '물방울 마커', price: 2, icon: '💧', purchased: false, equipped: false },
+    { id: 'marker_clover', name: '클로버 마커', price: 2, icon: '🍀', purchased: false, equipped: false },
+    { id: 'marker_ruby', name: '루비 마커', price: 2, icon: '💎', purchased: false, equipped: false },
+    { id: 'marker_rune', name: '룬스톤 마커', price: 2, icon: '🪨', purchased: false, equipped: false },
+    { id: 'marker_crown', name: '왕관 마커', price: 2, icon: '👑', purchased: false, equipped: false }
   ]
 };
 
-let MockRooms = [
-  { id: 'room_1', name: '좌표 마스터들의 전쟁',       maxPlayers: 4, currentPlayers: 3, status: '대기중', isPrivate: false, players: ['알파', '베타', '감마'] },
-  { id: 'room_2', name: '중1 수학 정복방 (비번 1234)', maxPlayers: 2, currentPlayers: 1, status: '대기중', isPrivate: true,  players: ['델타'] },
-  { id: 'room_3', name: '차원탈출 고수만 컴온',        maxPlayers: 4, currentPlayers: 4, status: '게임중', isPrivate: false, players: ['A', 'B', 'C', 'D'] }
-];
+let MockRooms = [];
 
 const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
 
@@ -249,6 +253,14 @@ const PLAYER_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
 // ══════════════════════════════════════════════
 const UI = {
   navigateTo(screenId) {
+    if (screenId !== 'screen-game') {
+      if (GameState.timerInterval) {
+        clearInterval(GameState.timerInterval);
+        GameState.timerInterval = null;
+      }
+      GameState.isGameOver = true;
+    }
+
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
     if (!target) return;
@@ -510,11 +522,9 @@ const UI = {
     this.updateCoinsDisplay();
     this.renderPlayerPanels();
     this.updateHUDTurn();
-    const xs = document.getElementById('slider-x');
-    const ys = document.getElementById('slider-y');
-    if (xs) xs.value = 0;
-    if (ys) ys.value = 0;
-    PlayerState.selectedX = 0; PlayerState.selectedY = 0;
+    PlayerState.inputX = 'ㅁ';
+    PlayerState.inputY = 'ㅁ';
+    PlayerState.focusedSlot = 'X';
     this.updateCoordDisplay();
     this.drawGrid();
     this.startTurnTimer();
@@ -557,13 +567,29 @@ const UI = {
   },
 
   startTurnTimer() {
-    if (GameState.timerInterval) clearInterval(GameState.timerInterval);
+    if (GameState.timerInterval) {
+      clearInterval(GameState.timerInterval);
+      GameState.timerInterval = null;
+    }
     GameState.timeLeft = 30;
+    const timerEl = document.getElementById('timer-value');
+    if (timerEl) timerEl.textContent = GameState.timeLeft;
+
     GameState.timerInterval = setInterval(() => {
-      if (GameState.isGameOver) { clearInterval(GameState.timerInterval); return; }
+      if (GameState.isGameOver) {
+        clearInterval(GameState.timerInterval);
+        GameState.timerInterval = null;
+        return;
+      }
       GameState.timeLeft--;
+      const curTimerEl = document.getElementById('timer-value');
+      if (curTimerEl) curTimerEl.textContent = GameState.timeLeft;
+
       if (GameState.timeLeft <= 0) {
         clearInterval(GameState.timerInterval);
+        GameState.timerInterval = null;
+        const p = GameState.players[GameState.currentTurn];
+        this.addLog(`⏱️ ${p.name} 시간 초과! 턴 패스.`, 'log-error');
         this.advanceTurn();
       }
     }, 1000);
@@ -585,6 +611,7 @@ const UI = {
   },
 
   placeMarker(x, y, playerIdx) {
+    if (GameState.isGameOver) return;
     if (!GameState.place(x, y, playerIdx)) {
       this.showToast('⚠️ 배치 실패');
       return;
@@ -617,6 +644,11 @@ const UI = {
   },
 
   advanceTurn() {
+    PlayerState.inputX = 'ㅁ';
+    PlayerState.inputY = 'ㅁ';
+    PlayerState.focusedSlot = 'X';
+    this.updateCoordDisplay();
+
     GameState.nextTurn();
     this.updateHUDTurn();
     this.startTurnTimer();
@@ -641,24 +673,99 @@ const UI = {
     setTimeout(() => this.placeMarker(x, y, GameState.currentTurn), 600);
   },
 
-  updateSliderCoords() {
-    const xs = document.getElementById('slider-x'), ys = document.getElementById('slider-y');
-    PlayerState.selectedX = parseInt(xs?.value ?? 0);
-    PlayerState.selectedY = parseInt(ys?.value ?? 0);
+  focusSlot(slot) {
+    if (GameState.players[GameState.currentTurn]?.isAI) return;
+    PlayerState.focusedSlot = slot;
+    this.updateCoordDisplay();
+  },
+
+  pressKey(key) {
+    if (GameState.players[GameState.currentTurn]?.isAI) return;
+
+    const isX = PlayerState.focusedSlot === 'X';
+    let currentVal = isX ? PlayerState.inputX : PlayerState.inputY;
+
+    if (key === 'clear') {
+      currentVal = 'ㅁ';
+    } else if (key === '-') {
+      if (currentVal === 'ㅁ') {
+        currentVal = '-';
+      } else if (currentVal === '-') {
+        currentVal = 'ㅁ';
+      } else if (currentVal.startsWith('-')) {
+        currentVal = currentVal.substring(1);
+      } else {
+        currentVal = '-' + currentVal;
+      }
+    } else {
+      if (currentVal === 'ㅁ') {
+        currentVal = key;
+      } else if (currentVal === '-') {
+        currentVal = '-' + key;
+      } else {
+        currentVal += key;
+      }
+    }
+
+    if (currentVal !== 'ㅁ' && currentVal !== '-' && currentVal !== '') {
+      const valInt = parseInt(currentVal);
+      if (isNaN(valInt) || valInt < -5 || valInt > 5) {
+        this.showToast('⚠️ 좌표 범위는 -5에서 5 사이여야 합니다!');
+        return;
+      }
+    }
+
+    if (isX) {
+      PlayerState.inputX = currentVal;
+      if (currentVal !== 'ㅁ' && currentVal !== '-') {
+        PlayerState.focusedSlot = 'Y';
+      }
+    } else {
+      PlayerState.inputY = currentVal;
+    }
+
     this.updateCoordDisplay();
     this.drawGrid();
   },
 
   updateCoordDisplay() {
-    const xCur = document.getElementById('x-current-val'), yCur = document.getElementById('y-current-val'), xy = document.getElementById('coord-xy-value');
-    if (xCur) xCur.textContent = `X: ${PlayerState.selectedX}`;
-    if (yCur) yCur.textContent = `Y: ${PlayerState.selectedY}`;
-    if (xy) xy.textContent = `( ${PlayerState.selectedX} , ${PlayerState.selectedY} )`;
+    const prevEl = document.getElementById('display-prev-coord');
+    if (prevEl) {
+      if (GameState.lastX !== null && GameState.lastY !== null) {
+        prevEl.textContent = `( ${GameState.lastX} , ${GameState.lastY} )`;
+      } else {
+        prevEl.textContent = `( - , - )`;
+      }
+    }
+
+    const slotX = document.getElementById('slot-x');
+    const slotY = document.getElementById('slot-y');
+    if (slotX) {
+      slotX.textContent = PlayerState.inputX;
+      slotX.classList.toggle('active', PlayerState.focusedSlot === 'X');
+    }
+    if (slotY) {
+      slotY.textContent = PlayerState.inputY;
+      slotY.classList.toggle('active', PlayerState.focusedSlot === 'Y');
+    }
+
     const confirmBtn = document.getElementById('btn-confirm-coord');
-    if (confirmBtn && !GameState.players[GameState.currentTurn]?.isAI) {
-      const isValid = GameState.isValidMove(PlayerState.selectedX, PlayerState.selectedY);
-      confirmBtn.disabled = !isValid;
-      confirmBtn.style.opacity = isValid ? '1' : '0.4';
+    if (confirmBtn) {
+      const isMyTurn = !GameState.players[GameState.currentTurn]?.isAI;
+      const valX = parseInt(PlayerState.inputX);
+      const valY = parseInt(PlayerState.inputY);
+      const hasValidInputs = !isNaN(valX) && valX >= -5 && valX <= 5 && !isNaN(valY) && valY >= -5 && valY <= 5;
+      
+      if (hasValidInputs && isMyTurn) {
+        PlayerState.selectedX = valX;
+        PlayerState.selectedY = valY;
+        const isValid = GameState.isValidMove(valX, valY);
+        confirmBtn.disabled = !isValid;
+        confirmBtn.style.opacity = isValid ? '1' : '0.4';
+      } else {
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.4';
+      }
     }
   },
 
@@ -717,6 +824,11 @@ function drawMarkerBySkin(ctx, cx, cy, radius, skinId, mainColor) {
   if (skinId === 'marker_flame') drawFlameMarker(ctx, cx, cy, radius);
   else if (skinId === 'marker_rose') drawRoseMarker(ctx, cx, cy, radius);
   else if (skinId === 'marker_star') drawStarMarker(ctx, cx, cy, radius);
+  else if (skinId === 'marker_water') drawWaterMarker(ctx, cx, cy, radius);
+  else if (skinId === 'marker_clover') drawCloverMarker(ctx, cx, cy, radius);
+  else if (skinId === 'marker_ruby') drawRubyMarker(ctx, cx, cy, radius);
+  else if (skinId === 'marker_rune') drawRuneMarker(ctx, cx, cy, radius);
+  else if (skinId === 'marker_crown') drawCrownMarker(ctx, cx, cy, radius);
   else drawNormalMarker(ctx, cx, cy, radius, mainColor);
 }
 
@@ -828,6 +940,172 @@ function drawStarMarker(ctx, cx, cy, radius) {
   ctx.restore();
 }
 
+function drawWaterMarker(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.moveTo(0, -radius);
+  ctx.bezierCurveTo(radius * 0.7, -radius * 0.3, radius, radius * 0.3, radius, radius * 0.6);
+  ctx.arc(0, radius * 0.6, radius, 0, Math.PI, false);
+  ctx.bezierCurveTo(-radius, radius * 0.3, -radius * 0.7, -radius * 0.3, 0, -radius);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, -radius, 0, radius);
+  grad.addColorStop(0, '#e0f7fa'); // 하이라이트 하늘색
+  grad.addColorStop(0.5, '#4fc3f7');
+  grad.addColorStop(1, '#0288d1'); // 진파랑
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCloverMarker(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const leafRadius = radius * 0.45;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-leafRadius, -leafRadius * 1.5, -leafRadius * 1.8, 0, 0, leafRadius);
+    ctx.bezierCurveTo(leafRadius * 1.8, 0, leafRadius, -leafRadius * 1.5, 0, 0);
+
+    const grad = ctx.createRadialGradient(0, 0, 1, 0, -leafRadius * 0.5, leafRadius);
+    grad.addColorStop(0, '#a5d6a7'); // 밝은 연두
+    grad.addColorStop(0.6, '#4caf50'); // 초록
+    grad.addColorStop(1, '#1b5e20'); // 짙은 초록
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.rotate(Math.PI / 2);
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffeb3b';
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRubyMarker(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.moveTo(0, -radius);
+  ctx.lineTo(radius * 0.8, -radius * 0.4);
+  ctx.lineTo(radius * 0.8, radius * 0.4);
+  ctx.lineTo(0, radius);
+  ctx.lineTo(-radius * 0.8, radius * 0.4);
+  ctx.lineTo(-radius * 0.8, -radius * 0.4);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, -radius, 0, radius);
+  grad.addColorStop(0, '#ff8a80'); // 루비 핑크
+  grad.addColorStop(0.4, '#ff1744'); // 진빨강
+  grad.addColorStop(1, '#880e4f'); // 어두운 자주
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 내부 컷팅선
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.8, -radius * 0.4);
+  ctx.lineTo(radius * 0.8, -radius * 0.4);
+  ctx.moveTo(-radius * 0.8, radius * 0.4);
+  ctx.lineTo(radius * 0.8, radius * 0.4);
+  ctx.moveTo(0, -radius);
+  ctx.lineTo(0, radius);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRuneMarker(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, radius * 0.9, radius * 0.8, Math.PI / 12, 0, Math.PI * 2);
+
+  const grad = ctx.createRadialGradient(-radius * 0.2, -radius * 0.2, radius * 0.1, 0, 0, radius);
+  grad.addColorStop(0, '#cfd8dc'); // 연회색
+  grad.addColorStop(0.7, '#78909c'); // 짙은 회색
+  grad.addColorStop(1, '#37474f'); // 돌 테두리
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 각인 문자
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.3, -radius * 0.4);
+  ctx.lineTo(-radius * 0.3, radius * 0.4);
+  ctx.moveTo(-radius * 0.3, -radius * 0.2);
+  ctx.lineTo(radius * 0.2, -radius * 0.4);
+  ctx.moveTo(-radius * 0.3, 0.1 * radius);
+  ctx.lineTo(radius * 0.2, -0.1 * radius);
+
+  ctx.strokeStyle = '#00e5ff'; // 민트색 발광
+  ctx.lineWidth = 3;
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 6;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCrownMarker(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.8, radius * 0.5);
+  ctx.lineTo(radius * 0.8, radius * 0.5);
+  ctx.lineTo(radius * 0.9, -radius * 0.1);
+  ctx.lineTo(radius * 0.4, -radius * 0.1);
+  ctx.lineTo(0, -radius * 0.7);
+  ctx.lineTo(-radius * 0.4, -radius * 0.1);
+  ctx.lineTo(-radius * 0.9, -radius * 0.1);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, -radius, 0, radius);
+  grad.addColorStop(0, '#ffe082'); // 밝은 골드
+  grad.addColorStop(0.5, '#ffb300');
+  grad.addColorStop(1, '#ff6f00'); // 주황 골드
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 루비 원형 보석
+  ctx.fillStyle = '#ff1744';
+  ctx.beginPath();
+  ctx.arc(0, -radius * 0.75, radius * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 사파이어 보석
+  ctx.fillStyle = '#00e5ff';
+  ctx.beginPath();
+  ctx.arc(-radius * 0.9, -radius * 0.15, radius * 0.1, 0, Math.PI * 2);
+  ctx.arc(radius * 0.9, -radius * 0.15, radius * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function lightenColor(hex, percent) {
   const num = parseInt(hex.replace("#",""), 16),
         amt = Math.round(2.55 * percent),
@@ -853,10 +1131,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (el) el.textContent = e.target.value.trim() || '모험가';
   });
 
-  // 아바타 라디오
-  document.getElementById('avatar-male')?.addEventListener('change', () => { PlayerState.avatar = 'male'; });
-  document.getElementById('avatar-female')?.addEventListener('change', () => { PlayerState.avatar = 'female'; });
-
   // 방 공개/비공개
   document.getElementById('room-public')?.addEventListener('change', () => {
     const g = document.getElementById('password-group'); if (g) g.style.display = 'none';
@@ -864,27 +1138,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('room-private')?.addEventListener('change', () => {
     const g = document.getElementById('password-group'); if (g) g.style.display = 'block';
   });
-
-  // 슬라이더 — input 이벤트 (마우스/키보드)
-  document.getElementById('slider-x')?.addEventListener('input', () => UI.updateSliderCoords());
-  document.getElementById('slider-y')?.addEventListener('input', () => UI.updateSliderCoords());
-
-  // ─ 터치 기반 슬라이더 제어 (태블릿) ─
-  // touchmove의 passive:false + preventDefault로 페이지 스크롤 차단
-  ['slider-x', 'slider-y'].forEach(id => {
-    const slider = document.getElementById(id);
-    if (!slider) return;
-
-    slider.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-    slider.addEventListener('touchmove', e => {
-      e.preventDefault(); // 스크롤 차단
-      e.stopPropagation();
-    }, { passive: false });
-    slider.addEventListener('touchend', () => UI.updateSliderCoords(), { passive: true });
-  });
-
-  // 좌표 확인 버튼
-  document.getElementById('btn-confirm-coord')?.addEventListener('click', () => UI.confirmCoord());
 
   // 윈도우 리사이즈 시 게임 화면 캔버스 재드로우
   window.addEventListener('resize', () => {
