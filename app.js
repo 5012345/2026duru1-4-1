@@ -9,12 +9,12 @@
 
 // Firebase 구성 정보 및 초기화 (사용자 프로젝트 발급값으로 대체 가능)
 const FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
+  apiKey: "AIzaSyBtd0WW39hBG-RbL1TfxMSO4vZPjRiOg34",
+  authDomain: "duru1-4-1.firebaseapp.com",
+  databaseURL: "https://duru1-4-1-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "duru1-4-1",
+  storageBucket: "duru1-4-1.firebasestorage.app",
+  messagingSenderId: "172898152499",
   appId: "YOUR_APP_ID"
 };
 
