@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "rooms": {
+      ".read": "auth != null",
+      "$room_id": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid)"
+      }
+    },
+    "games": {
+      "$game_id": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('playerUids').child(auth.uid).exists() || data.child('ownerUid').val() === auth.uid)"
+      }
+    }
+  }
+}

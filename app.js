@@ -7,6 +7,30 @@
  * [마커 상점] 획득한 코인으로 그라데이션이 적용된 불꽃, 무궁화, 별 마커를 구매 및 적용할 수 있습니다.
  */
 
+// Firebase 구성 정보 및 초기화 (사용자 프로젝트 발급값으로 대체 가능)
+const FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let db = null;
+let auth = null;
+
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    auth = firebase.auth();
+  }
+} catch (e) {
+  console.warn("Firebase initialize failed:", e);
+}
+
 // ══════════════════════════════════════════════
 //  전역 상태 (아바타/오라가 제거되고 마커 장착으로 최적화)
 // ══════════════════════════════════════════════
@@ -21,7 +45,8 @@ const PlayerState = {
   isSpectating: false,
   inputX: 'ㅁ',
   inputY: 'ㅁ',
-  focusedSlot: 'X'
+  focusedSlot: 'X',
+  uid: null
 };
 
 const PreviewState = {
@@ -288,6 +313,7 @@ const UI = {
         GameState.timerInterval = null;
       }
       GameState.isGameOver = true;
+      this.leaveCurrentRoom();
     }
 
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -295,12 +321,71 @@ const UI = {
     if (!target) return;
     target.classList.add('active');
     this.showToast(`🗺️ ${this.getScreenName(screenId)}`);
-    if (screenId === 'screen-room-list') this.renderRooms();
+    if (screenId === 'screen-room-list') this.bindRoomsRealtime();
     else if (screenId === 'screen-shop') {
       this.syncPreviewWithEquipped();
       this.renderShop();
       this.updateMarkerPreview();
     } else if (screenId === 'screen-game') this.initGameBoard();
+  },
+
+  leaveCurrentRoom() {
+    const room = PlayerState.currentRoom;
+    if (!room) return;
+
+    const roomId = room.id;
+    PlayerState.currentRoom = null;
+    PlayerState.isSpectating = false;
+
+    if (roomId.startsWith('ai_')) return;
+
+    if (db) {
+      const roomRef = db.ref(`rooms/${roomId}`);
+      const gameRef = db.ref(`games/${roomId}`);
+
+      roomRef.transaction(currentData => {
+        if (currentData === null) return null;
+
+        const nextPlayers = (currentData.currentPlayers || 1) - 1;
+        if (nextPlayers <= 0) {
+          return null;
+        }
+
+        currentData.currentPlayers = nextPlayers;
+        if (currentData.players) {
+          currentData.players = currentData.players.filter(name => name !== PlayerState.nickname);
+        }
+        if (currentData.playerUids) {
+          delete currentData.playerUids[PlayerState.uid || 'offline'];
+        }
+        currentData.status = '대기중';
+        return currentData;
+      }, (error, committed, snapshot) => {
+        if (error) {
+          console.error("Leave Room error:", error);
+        } else if (committed && snapshot.val() === null) {
+          gameRef.remove().catch(err => console.error("Game cleanup error:", err));
+          this.showToast('🚪 방이 폐쇄되어 삭제되었습니다.');
+        } else {
+          gameRef.update({ isGameOver: true }).catch(err => console.error("Game abort error:", err));
+          this.showToast('🚪 방에서 퇴장했습니다.');
+        }
+      });
+    } else {
+      const idx = MockRooms.findIndex(r => r.id === roomId);
+      if (idx !== -1) {
+        const r = MockRooms[idx];
+        r.currentPlayers--;
+        if (r.currentPlayers <= 0) {
+          MockRooms.splice(idx, 1);
+          this.showToast('🚪 방이 삭제되었습니다.');
+        } else {
+          r.players = r.players.filter(name => name !== PlayerState.nickname);
+          r.status = '대기중';
+          this.showToast('🚪 방에서 퇴장했습니다.');
+        }
+      }
+    }
   },
 
   getScreenName(id) {
@@ -326,10 +411,56 @@ const UI = {
     if (!nick || nick.length < 2) { this.showToast('⚠️ 닉네임을 2자 이상 입력하세요!'); return; }
     PlayerState.nickname = nick;
     document.getElementById('header-nickname').textContent = nick;
-    this.updateCoinsDisplay();
-    document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
-    this.showToast(`👋 환영합니다, ${nick}!`);
-    this.navigateTo('screen-room-list');
+
+    if (auth) {
+      this.showToast('🔐 익명 인증 로그인 시도 중…');
+      auth.signInAnonymously().then(result => {
+        const user = result.user;
+        PlayerState.uid = user.uid;
+        
+        const userRef = db.ref(`users/${user.uid}`);
+        userRef.once('value').then(snapshot => {
+          const data = snapshot.val();
+          if (data) {
+            PlayerState.wins = data.wins ?? 0;
+            PlayerState.coins = data.coins ?? 0;
+            PlayerState.markerSkin = data.markerSkin ?? 'marker_normal';
+            if (data.nickname) {
+              PlayerState.nickname = data.nickname;
+              document.getElementById('header-nickname').textContent = data.nickname;
+            } else {
+              userRef.update({ nickname: nick });
+            }
+          } else {
+            userRef.set({
+              nickname: nick,
+              wins: 0,
+              coins: 0,
+              markerSkin: 'marker_normal'
+            });
+          }
+          this.updateCoinsDisplay();
+          document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
+          this.showToast(`👋 환영합니다, ${PlayerState.nickname}!`);
+          this.navigateTo('screen-room-list');
+        }).catch(err => {
+          console.error("DB Load Error:", err);
+          this.showToast('❌ DB 정보 동기화 실패');
+          this.navigateTo('screen-room-list');
+        });
+      }).catch(error => {
+        console.error("Auth Error:", error);
+        this.showToast('⚠️ 인증 오류! 오프라인 모드로 진입합니다.');
+        this.updateCoinsDisplay();
+        document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
+        this.navigateTo('screen-room-list');
+      });
+    } else {
+      this.updateCoinsDisplay();
+      document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
+      this.showToast(`👋 환영합니다, ${nick}! (오프라인 모드)`);
+      this.navigateTo('screen-room-list');
+    }
   },
 
   updateCoinsDisplay() {
@@ -337,6 +468,17 @@ const UI = {
     const shopCoins = document.getElementById('shop-coins');
     if (headerCoins) headerCoins.textContent = `🪙 ${PlayerState.coins}`;
     if (shopCoins) shopCoins.textContent = PlayerState.coins;
+    this.saveUserAssets();
+  },
+
+  saveUserAssets() {
+    if (auth && PlayerState.uid) {
+      db.ref(`users/${PlayerState.uid}`).update({
+        wins: PlayerState.wins,
+        coins: PlayerState.coins,
+        markerSkin: PlayerState.markerSkin
+      }).catch(err => console.error("Asset Sync Error:", err));
+    }
   },
 
   openAIMatchModal() {
@@ -463,6 +605,28 @@ const UI = {
     this.showToast('✨ 마커 스킨 장착 완료!');
   },
 
+  roomsListenerBound: false,
+  bindRoomsRealtime() {
+    if (this.roomsListenerBound || !db) {
+      this.renderRooms();
+      return;
+    }
+    this.roomsListenerBound = true;
+    db.ref('rooms').on('value', snapshot => {
+      const data = snapshot.val();
+      const list = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          list.push({ id: key, ...data[key] });
+        });
+      }
+      MockRooms = list;
+      this.renderRooms();
+    }, err => {
+      console.error("Rooms sync error:", err);
+    });
+  },
+
   renderRooms() {
     const grid = document.getElementById('rooms-grid');
     if (!grid) return;
@@ -484,14 +648,54 @@ const UI = {
 
   tryEnterRoom(room) {
     if (room.status === '게임중') { this.openSpectateModal(room); return; }
-    if (room.isPrivate && prompt('🔑 비밀번호:') !== '1234') { this.showToast('❌ 비밀번호 오류'); return; }
-    PlayerState.coins += 1;
-    this.updateCoinsDisplay();
-    PlayerState.currentRoom = room;
-    const players = room.players.map((n, i) => ({ name:n, color:PLAYER_COLORS[i%PLAYER_COLORS.length], isAI:false }));
-    GameState.init(players, false);
-    this.showToast(`🚪 참가 코인 1코인 획득!`);
-    this.navigateTo('screen-game');
+    if (room.isPrivate) {
+      const pw = prompt('🔑 비밀번호 4자리를 입력하세요:');
+      if (hashString(pw) !== room.password_hash) {
+        this.showToast('❌ 비밀번호 오류');
+        return;
+      }
+    }
+
+    if (!db) {
+      PlayerState.coins += 1;
+      this.updateCoinsDisplay();
+      PlayerState.currentRoom = room;
+      const players = room.players.map((n, i) => ({ name:n, color:PLAYER_COLORS[i%PLAYER_COLORS.length], isAI:false }));
+      GameState.init(players, false);
+      this.showToast(`🚪 참가 코인 1코인 획득!`);
+      this.navigateTo('screen-game');
+      return;
+    }
+
+    const roomRef = db.ref(`rooms/${room.id}`);
+    roomRef.transaction(currentData => {
+      if (currentData === null) return null;
+      if (currentData.currentPlayers >= currentData.maxPlayers) {
+        return undefined;
+      }
+      currentData.currentPlayers = (currentData.currentPlayers || 1) + 1;
+      if (!currentData.players) currentData.players = [];
+      if (!currentData.players.includes(PlayerState.nickname)) {
+        currentData.players.push(PlayerState.nickname);
+      }
+      if (!currentData.playerUids) currentData.playerUids = {};
+      currentData.playerUids[PlayerState.uid || 'offline'] = true;
+      currentData.status = '게임중';
+      return currentData;
+    }, (error, committed, snapshot) => {
+      if (error) {
+        console.error("Join Room transaction error:", error);
+        this.showToast('❌ 대방 참가 실패');
+      } else if (!committed) {
+        this.showToast('⚠️ 방의 정원이 가득 찼거나 상태가 변경되었습니다.');
+      } else {
+        PlayerState.coins += 1;
+        this.updateCoinsDisplay();
+        const joinedRoom = snapshot.val();
+        PlayerState.currentRoom = { id: room.id, ...joinedRoom };
+        this.setupMultiplayerGame(room.id, joinedRoom, false);
+      }
+    });
   },
 
   openSpectateModal(room) {
@@ -519,15 +723,161 @@ const UI = {
     const isPrivate = document.getElementById('room-private')?.checked;
     const pw = document.getElementById('input-room-pw')?.value;
     if (isPrivate && (!pw || pw.length !== 4)) { this.showToast('⚠️ 비공개 방은 4자리 비밀번호 필요!'); return; }
+
     PlayerState.coins += 1;
     this.updateCoinsDisplay();
-    const room = { id:`room_${Date.now()}`, name, maxPlayers:this.selectedMaxPlayers, currentPlayers:1, status:'대기중', isPrivate, players:[PlayerState.nickname] };
-    MockRooms.push(room);
-    this.closeModal('modal-create-room');
-    PlayerState.currentRoom = room;
-    GameState.init([{name:PlayerState.nickname, color:PLAYER_COLORS[0], isAI:false}], false);
-    this.showToast(`🚀 방 생성! 참가 코인 1코인 획득!`);
+
+    const roomId = `room_${Date.now()}`;
+    const roomData = {
+      name: name,
+      maxPlayers: this.selectedMaxPlayers,
+      currentPlayers: 1,
+      status: '대기중',
+      isPrivate: isPrivate,
+      password_hash: isPrivate ? hashString(pw) : null,
+      players: [PlayerState.nickname],
+      playerUids: { [PlayerState.uid || 'offline']: true },
+      ownerUid: PlayerState.uid || 'offline',
+      created_at: Date.now()
+    };
+
+    if (db) {
+      db.ref(`rooms/${roomId}`).set(roomData).then(() => {
+        this.closeModal('modal-create-room');
+        PlayerState.currentRoom = { id: roomId, ...roomData };
+        this.setupMultiplayerGame(roomId, roomData, true);
+      }).catch(err => {
+        console.error("Room creation error:", err);
+        this.showToast('❌ 방 생성 실패 (권한 없음)');
+      });
+    } else {
+      MockRooms.push({ id: roomId, ...roomData });
+      this.closeModal('modal-create-room');
+      PlayerState.currentRoom = { id: roomId, ...roomData };
+      GameState.init([{name:PlayerState.nickname, color:PLAYER_COLORS[0], isAI:false}], false);
+      this.showToast(`🚀 방 생성! 참가 코인 1코인 획득! (오프라인)`);
+      this.navigateTo('screen-game');
+    }
+  },
+
+  setupMultiplayerGame(roomId, roomData, isOwner) {
+    const gameRef = db.ref(`games/${roomId}`);
+    if (isOwner) {
+      const initialGame = {
+        board: Array(11).fill(null).map(() => Array(11).fill(null)),
+        currentTurn: 0,
+        players: [
+          { name: PlayerState.nickname, color: PLAYER_COLORS[0], skin: PlayerState.markerSkin, uid: PlayerState.uid },
+          { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null }
+        ],
+        playerUids: { [PlayerState.uid]: 0 },
+        lastX: null,
+        lastY: null,
+        isFirstMove: true,
+        isGameOver: false,
+        turnEndTime: Date.now() + 30000
+      };
+      gameRef.set(initialGame).then(() => {
+        this.bindGameRealtime(roomId, isOwner);
+      });
+    } else {
+      gameRef.transaction(game => {
+        if (!game) return null;
+        game.players[1] = { name: PlayerState.nickname, color: PLAYER_COLORS[1], skin: PlayerState.markerSkin, uid: PlayerState.uid };
+        if (!game.playerUids) game.playerUids = {};
+        game.playerUids[PlayerState.uid] = 1;
+        game.turnEndTime = Date.now() + 30000;
+        return game;
+      }, (err, committed) => {
+        if (committed) {
+          this.bindGameRealtime(roomId, isOwner);
+        } else {
+          this.showToast('❌ 게임 시작 데이터 세팅 실패');
+        }
+      });
+    }
+  },
+
+  gameListenerBound: null,
+  bindGameRealtime(roomId, isOwner) {
+    if (this.gameListenerBound) {
+      db.ref(`games/${this.gameListenerBound}`).off();
+    }
+    this.gameListenerBound = roomId;
+
+    const gameRef = db.ref(`games/${roomId}`);
+    gameRef.on('value', snapshot => {
+      const game = snapshot.val();
+      if (!game) return;
+
+      GameState.board = game.board;
+      GameState.currentTurn = game.currentTurn;
+      GameState.players = game.players;
+      GameState.lastX = game.lastX;
+      GameState.lastY = game.lastY;
+      GameState.isFirstMove = game.isFirstMove;
+      GameState.isGameOver = game.isGameOver;
+
+      this.updateHUDTurn();
+      this.renderPlayerPanels();
+      this.updateCoordDisplay();
+      this.drawGrid();
+
+      this.syncTurnTimer(game.turnEndTime, game.currentTurn);
+
+      if (game.players[1] && game.players[1].uid && !GameState.isGameOver) {
+        const hudRn = document.getElementById('hud-room-name');
+        if (hudRn) hudRn.textContent = PlayerState.currentRoom.name;
+      }
+    });
+
     this.navigateTo('screen-game');
+  },
+
+  syncTurnTimer(turnEndTime, currentTurn) {
+    if (GameState.timerInterval) {
+      clearInterval(GameState.timerInterval);
+      GameState.timerInterval = null;
+    }
+    if (GameState.isGameOver) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
+      GameState.timeLeft = diff;
+
+      const timerEl = document.getElementById('timer-value');
+      if (timerEl) timerEl.textContent = diff;
+
+      if (diff <= 0) {
+        clearInterval(GameState.timerInterval);
+        GameState.timerInterval = null;
+
+        const myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+        const activePlayer = GameState.players[currentTurn];
+        if (myIndex === 0) {
+          this.addLog(`⏱️ ${activePlayer.name} 시간 초과! 턴 패스.`, 'log-error');
+          this.passTurnInDB();
+        }
+      }
+    };
+
+    updateTimer();
+    GameState.timerInterval = setInterval(updateTimer, 1000);
+  },
+
+  passTurnInDB() {
+    if (!db || !PlayerState.currentRoom) return;
+    const gameRef = db.ref(`games/${PlayerState.currentRoom.id}`);
+    gameRef.once('value').then(snapshot => {
+      const game = snapshot.val();
+      if (!game || game.isGameOver) return;
+      const nextTurn = (game.currentTurn + 1) % game.players.length;
+      gameRef.update({
+        currentTurn: nextTurn,
+        turnEndTime: Date.now() + 30000
+      });
+    });
   },
 
   renderAdminConsole() {
@@ -640,6 +990,59 @@ const UI = {
 
   placeMarker(x, y, playerIdx) {
     if (GameState.isGameOver) return;
+
+    if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
+      const myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+      if (myIndex !== playerIdx) {
+        this.showToast('⚠️ 내 턴이 아닙니다!');
+        return;
+      }
+      
+      const gameRef = db.ref(`games/${PlayerState.currentRoom.id}`);
+      gameRef.once('value').then(snapshot => {
+        const game = snapshot.val();
+        if (!game || game.isGameOver) return;
+
+        if (!GameState.isValidMove(x, y)) {
+          this.showToast('⚠️ 올바르지 않은 위치입니다!');
+          return;
+        }
+
+        const newBoard = JSON.parse(JSON.stringify(game.board));
+        newBoard[GameState.coordToIdx(y)][GameState.coordToIdx(x)] = playerIdx;
+
+        const nextTurn = (game.currentTurn + 1) % game.players.length;
+        const isWin = this.checkWinSimulate(newBoard, playerIdx);
+        const isFull = newBoard.every(row => row.every(c => c !== null));
+
+        const updates = {
+          board: newBoard,
+          lastX: x,
+          lastY: y,
+          isFirstMove: false,
+          currentTurn: nextTurn,
+          turnEndTime: Date.now() + 30000
+        };
+
+        if (isWin) {
+          updates.isGameOver = true;
+        } else if (isFull) {
+          updates.isGameOver = true;
+        }
+
+        gameRef.update(updates).then(() => {
+          if (isWin) {
+            if (myIndex === playerIdx) {
+              PlayerState.wins++;
+              PlayerState.coins += 3;
+              this.updateCoinsDisplay();
+            }
+          }
+        });
+      });
+      return;
+    }
+
     if (!GameState.place(x, y, playerIdx)) {
       this.showToast('⚠️ 배치 실패');
       return;
@@ -652,6 +1055,12 @@ const UI = {
       clearInterval(GameState.timerInterval);
       if (!p.isAI) {
         PlayerState.wins++;
+        const winsEl = document.getElementById('header-wins');
+        if (winsEl) winsEl.textContent = `🏆 ${PlayerState.wins}`;
+        const scoreEl = document.getElementById(`score-${playerIdx}`);
+        if (scoreEl) scoreEl.textContent = `🏆 ${PlayerState.wins}승`;
+        this.saveUserAssets();
+
         if (!GameState.isAIMode) {
           PlayerState.coins += 3;
           this.updateCoinsDisplay();
@@ -673,6 +1082,26 @@ const UI = {
       return;
     }
     this.advanceTurn();
+  },
+
+  checkWinSimulate(boardCopy, playerIdx) {
+    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    for (let r = 0; r < 11; r++) {
+      for (let c = 0; c < 11; c++) {
+        if (boardCopy[r][c] !== playerIdx) continue;
+        for (const [dr, dc] of dirs) {
+          let count = 1;
+          for (let s = 1; s < 3; s++) {
+            const nr = r + dr*s, nc = c + dc*s;
+            if (nr < 0 || nr > 10 || nc < 0 || nc > 10) break;
+            if (boardCopy[nr][nc] !== playerIdx) break;
+            count++;
+          }
+          if (count >= 3) return true;
+        }
+      }
+    }
+    return false;
   },
 
   advanceTurn() {
@@ -1173,6 +1602,17 @@ function darkenColor(hex, percent) {
         G = (num >> 8 & 0x00FF) - amt,
         B = (num & 0x0000FF) - amt;
   return "#" + (0x1000000 + (R<255?R<0?0:R:255)*0x10000 + (G<255?G<0?0:G:255)*0x100 + (B<255?B<0?0:B:255)).toString(16).slice(1);
+}
+
+function hashString(str) {
+  let hash = 0;
+  if (!str) return hash.toString(16);
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(16);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
