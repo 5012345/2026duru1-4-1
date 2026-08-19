@@ -26,6 +26,9 @@ try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e => {
+      console.warn("Auth persistence set failed:", e);
+    });
   }
 } catch (e) {
   console.warn("Firebase initialize failed:", e);
@@ -427,12 +430,9 @@ const UI = {
             PlayerState.wins = data.wins ?? 0;
             PlayerState.coins = data.coins ?? 0;
             PlayerState.markerSkin = data.markerSkin ?? 'marker_normal';
-            if (data.nickname) {
-              PlayerState.nickname = data.nickname;
-              document.getElementById('header-nickname').textContent = data.nickname;
-            } else {
-              userRef.update({ nickname: nick });
-            }
+            PlayerState.nickname = nick;
+            document.getElementById('header-nickname').textContent = nick;
+            userRef.update({ nickname: nick });
           } else {
             userRef.set({
               nickname: nick,
