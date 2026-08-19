@@ -419,43 +419,55 @@ const UI = {
 
     if (auth) {
       this.showToast('🔐 익명 인증 로그인 시도 중…');
-      auth.signInAnonymously().then(result => {
-        const user = result.user;
-        PlayerState.uid = user.uid;
-        
-        const userRef = db.ref(`users/${user.uid}`);
-        userRef.once('value').then(snapshot => {
-          const data = snapshot.val();
-          if (data) {
-            PlayerState.wins = data.wins ?? 0;
-            PlayerState.coins = data.coins ?? 0;
-            PlayerState.markerSkin = data.markerSkin ?? 'marker_normal';
-            PlayerState.nickname = nick;
-            document.getElementById('header-nickname').textContent = nick;
-            userRef.update({ nickname: nick });
-          } else {
-            userRef.set({
-              nickname: nick,
-              wins: 0,
-              coins: 0,
-              markerSkin: 'marker_normal'
-            });
-          }
+      const cleanSessionPromise = auth.currentUser ? auth.signOut() : Promise.resolve();
+
+      cleanSessionPromise.then(() => {
+        auth.signInAnonymously().then(result => {
+          const user = result.user;
+          PlayerState.uid = user.uid;
+          
+          const userRef = db.ref(`users/${user.uid}`);
+          userRef.once('value').then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+              PlayerState.wins = data.wins ?? 0;
+              PlayerState.coins = data.coins ?? 0;
+              PlayerState.markerSkin = data.markerSkin ?? 'marker_normal';
+              PlayerState.nickname = nick;
+              document.getElementById('header-nickname').textContent = nick;
+              userRef.update({ nickname: nick });
+            } else {
+              userRef.set({
+                nickname: nick,
+                wins: 0,
+                coins: 0,
+                markerSkin: 'marker_normal'
+              });
+            }
+            this.updateCoinsDisplay();
+            document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
+            this.showToast(`👋 환영합니다, ${PlayerState.nickname}!`);
+            this.navigateTo('screen-room-list');
+          }).catch(err => {
+            console.error("DB Load Error:", err);
+            this.showToast('❌ DB 정보 동기화 실패');
+            this.navigateTo('screen-room-list');
+          });
+        }).catch(error => {
+          console.error("Auth Error:", error);
+          this.showToast('⚠️ 인증 오류! 오프라인 모드로 진입합니다.');
           this.updateCoinsDisplay();
           document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
-          this.showToast(`👋 환영합니다, ${PlayerState.nickname}!`);
-          this.navigateTo('screen-room-list');
-        }).catch(err => {
-          console.error("DB Load Error:", err);
-          this.showToast('❌ DB 정보 동기화 실패');
           this.navigateTo('screen-room-list');
         });
-      }).catch(error => {
-        console.error("Auth Error:", error);
-        this.showToast('⚠️ 인증 오류! 오프라인 모드로 진입합니다.');
-        this.updateCoinsDisplay();
-        document.getElementById('header-wins').textContent = `🏆 ${PlayerState.wins}`;
-        this.navigateTo('screen-room-list');
+      }).catch(err => {
+        console.error("SignOut Error:", err);
+        // 로그아웃 에러 시 강제 진행 fallback
+        auth.signInAnonymously().then(result => {
+          const user = result.user;
+          PlayerState.uid = user.uid;
+          this.navigateTo('screen-room-list');
+        });
       });
     } else {
       this.updateCoinsDisplay();
