@@ -54,27 +54,6 @@
             </div>
           </div>
 
-          <!-- 아바타 선택 -->
-          <div class="form-group">
-            <label class="form-label">🧑 아바타 선택</label>
-            <div class="avatar-selector">
-              <label class="avatar-option" id="avatar-opt-male">
-                <input type="radio" name="avatar" value="male" id="avatar-male" checked />
-                <div class="avatar-card">
-                  <img src="assets/avatar_male.png" alt="남자 아바타" class="avatar-img" />
-                  <span class="avatar-label">🧒 탐험가</span>
-                </div>
-              </label>
-              <label class="avatar-option" id="avatar-opt-female">
-                <input type="radio" name="avatar" value="female" id="avatar-female" />
-                <div class="avatar-card">
-                  <img src="assets/avatar_female.png" alt="여자 아바타" class="avatar-img" />
-                  <span class="avatar-label">👧 마법사</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
           <!-- 닉네임 + 승수 뱃지 미리보기 -->
           <div class="badge-preview" id="badge-preview">
             <span class="badge-nickname" id="preview-nickname">모험가</span>
@@ -98,7 +77,7 @@
             📜<span>게임 규칙서</span>
           </button>
           <button class="btn-nav" id="btn-shop" onclick="UI.navigateTo('screen-shop')">
-            🛍️<span>아바타 상점</span>
+            🛍️<span>마커 상점</span>
           </button>
           <button class="btn-nav btn-nav-admin" id="btn-admin" onclick="UI.openModal('modal-admin')">
             ⚙️<span>관리자 콘솔</span>
@@ -122,9 +101,9 @@
         <button class="btn-back" onclick="UI.navigateTo('screen-lobby')">← 뒤로</button>
         <h2 class="screen-title">🏰 모험가 대기실</h2>
         <div class="player-badge-header">
-          <img src="assets/avatar_male.png" alt="아바타" class="header-avatar" id="header-avatar-img" />
           <span class="header-nickname" id="header-nickname">모험가</span>
           <span class="header-badge wins-badge" id="header-wins">🏆 0</span>
+          <span class="header-badge coins-badge" id="header-coins" style="margin-left: 8px; background: linear-gradient(135deg, #f1c40f, #f39c12); color: #fff; border: 1px solid #f1c40f;">🪙 0</span>
         </div>
       </header>
 
@@ -154,61 +133,45 @@
   </section>
 
   <!-- ══════════════════════════════════════════════
-       SCREEN 3: 아바타 상점
+       SCREEN 3: 마커 상점
   ══════════════════════════════════════════════ -->
   <section class="screen" id="screen-shop">
-    <div class="shop-wrapper">
+    <div class="shop-wrapper" style="grid-template-columns: 1fr 280px; display: grid; gap: 20px;">
 
-      <header class="screen-header">
+      <header class="screen-header" style="grid-column: 1 / -1;">
         <button class="btn-back" onclick="UI.navigateTo('screen-lobby')">← 뒤로</button>
-        <h2 class="screen-title">🛍️ 아바타 상점</h2>
+        <h2 class="screen-title">🛍️ 마커 상점</h2>
         <div class="coin-display">
           <span class="coin-icon">🪙</span>
-          <span class="coin-amount" id="shop-coins">150</span>
+          <span class="coin-amount" id="shop-coins">0</span>
         </div>
       </header>
 
-      <!-- 상점 탭 -->
-      <div class="shop-tabs" role="tablist">
-        <button class="shop-tab active" id="tab-aura" role="tab" aria-selected="true" onclick="UI.switchShopTab('aura')">
-          ✨ 오라
-        </button>
-        <button class="shop-tab" id="tab-slider" role="tab" aria-selected="false" onclick="UI.switchShopTab('slider')">
-          🎚️ 슬라이더
-        </button>
-      </div>
-
-      <!-- 상점 아이템 그리드 -->
-      <div class="shop-content-area">
-        <!-- 오라 탭 -->
-        <div class="shop-panel active" id="panel-aura">
-          <div class="shop-items-grid" id="grid-aura"></div>
-        </div>
-        <!-- 슬라이더 스킨 탭 -->
-        <div class="shop-panel" id="panel-slider">
-          <div class="shop-items-grid" id="grid-slider"></div>
-        </div>
-      </div>
-
-      <!-- 아바타 미리보기 사이드바 -->
-      <aside class="shop-preview">
-        <div class="preview-frame wood-panel">
-          <p class="preview-title">미리보기</p>
-          <div class="preview-avatar-container">
-            <div class="aura-effect" id="preview-aura-effect"></div>
-            <img src="assets/avatar_male.png" alt="아바타 미리보기" class="preview-avatar-img" id="shop-preview-avatar" />
+      <!-- 상점 아이템 그리드 (오직 마커 스킨들만 배치) -->
+      <div class="shop-content-area" style="grid-column: 1 / 2; background: var(--wood-darkest); border: 4px solid var(--wood-light); border-radius: 12px; padding: 20px; min-height: 400px;">
+        <div class="shop-panel active">
+          <div class="shop-items-grid" id="grid-marker">
+            <!-- JS로 동적 생성 -->
           </div>
-          <div class="preview-name" id="shop-preview-name">모험가</div>
+        </div>
+      </div>
+
+      <!-- 마커 미리보기 사이드바 -->
+      <aside class="shop-preview" style="grid-column: 2 / 3;">
+        <div class="preview-frame wood-panel" style="display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; border-radius: 10px; background: rgba(0,0,0,0.4); border: 3px solid var(--wood-medium);">
+          <p class="preview-title" style="font-family: var(--font-game); color: var(--gold); font-size: 1.1rem; font-weight: 700;">마커 미리보기</p>
+          <div class="preview-marker-container" style="width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; background: var(--wood-darkest); border: 3px solid var(--wood-medium); border-radius: 12px; overflow: hidden; position: relative;">
+            <canvas id="shop-preview-marker-canvas" width="120" height="120"></canvas>
+          </div>
+          <div class="preview-name" id="shop-preview-name" style="font-weight: 700; font-size: 1.1rem; color: #fff;">선택된 마커</div>
           
-          <!-- 미리보기 아이템 현황 추가 -->
-          <div class="preview-items-list" id="shop-preview-items" style="font-size: 0.8rem; color: var(--wood-pale); text-align: center; width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; border: 1px solid var(--wood-medium);">
-            <!-- JS 동적 생성 -->
+          <div class="preview-items-list" id="shop-preview-items" style="font-size: 0.85rem; color: var(--wood-pale); text-align: center; width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; border: 1px solid var(--wood-medium);">
+            <!-- 적용 대기 아이템 이름 및 가격 -->
           </div>
 
-          <button class="btn btn-primary btn-sm" id="btn-equip-all" onclick="UI.applyPreviewItems()">✅ 적용하기</button>
+          <button class="btn btn-primary btn-sm" id="btn-equip-all" onclick="UI.applyPreviewItems()" style="width: 100%;">✅ 적용하기</button>
         </div>
       </aside>
-
 
     </div>
   </section>
@@ -364,26 +327,27 @@
         <div class="rules-content active" id="rcontent-pixel">
           <div class="rules-section">
             <h3>🎯 게임 목표</h3>
-            <p>좌표평면 위에 자신의 픽셀을 놓아 <strong>가로, 세로, 대각선 방향으로 4개</strong>를 먼저 연결하면 승리합니다. 단, 적의 픽셀을 피하거나 차단하는 전략이 필요합니다!</p>
+            <p>좌표평면 위에 자신의 픽셀을 놓아 <strong>가로, 세로, 대각선 방향으로 3개</strong>를 먼저 연결하면 승리합니다. 단, 상대의 픽셀 배치를 방해하고 나의 픽셀을 완성하는 전략이 필요합니다!</p>
           </div>
           <div class="rules-section">
             <h3>🔄 게임 진행 순서</h3>
             <ol>
-              <li>각 플레이어는 아바타와 색상을 배정받습니다.</li>
+              <li>각 플레이어는 고유 색상을 배정받습니다.</li>
               <li>가위바위보 또는 주사위로 <strong>선공</strong>을 결정합니다.</li>
               <li>자신의 턴에 X축 슬라이더와 Y축 슬라이더를 조작해 <strong>좌표를 선택</strong>합니다.</li>
               <li>선택한 좌표에 픽셀을 놓습니다. (30초 타임리밋)</li>
               <li>이미 픽셀이 있는 좌표는 선택할 수 없습니다.</li>
-              <li>4연속 완성 또는 <strong>모든 칸을 채우면 게임이 종료</strong>됩니다.</li>
+              <li><strong>3연속 완성</strong> 또는 모든 칸을 채우면 게임이 종료됩니다.</li>
             </ol>
           </div>
           <div class="rules-section">
-            <h3>🏆 승점 계산</h3>
+            <h3>🏆 코인 보상 및 상점</h3>
             <table class="rules-table">
               <tr><th>조건</th><th>획득 코인</th></tr>
-              <tr><td>게임 참가</td><td>🪙 10</td></tr>
-              <tr><td>게임 승리</td><td>🪙 50</td></tr>
+              <tr><td>게임 참가</td><td>🪙 1</td></tr>
+              <tr><td>게임 승리</td><td>🪙 3</td></tr>
             </table>
+            <p style="margin-top: 8px; font-size: 0.85rem; color: var(--wood-pale);">획득한 코인으로 <strong>마커 상점</strong>에서 멋진 그라데이션 마커(불꽃, 무궁화, 별)를 구매하여 나만의 개성을 뽐낼 수 있습니다.</p>
           </div>
         </div>
 
