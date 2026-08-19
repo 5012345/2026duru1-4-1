@@ -775,7 +775,7 @@ const UI = {
       });
     } else {
       gameRef.transaction(game => {
-        if (!game) return null;
+        if (game === null) return game;
         game.players[1] = { name: PlayerState.nickname, color: PLAYER_COLORS[1], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins };
         if (!game.playerUids) game.playerUids = {};
         game.playerUids[PlayerState.uid] = 1;
