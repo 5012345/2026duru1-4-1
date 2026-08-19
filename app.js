@@ -15,7 +15,7 @@ const FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
   projectId: "duru1-4-1",
   storageBucket: "duru1-4-1.firebasestorage.app",
   messagingSenderId: "172898152499",
-  appId: "YOUR_APP_ID"
+  appId: "1:172898152499:web:067d57ebbf8c04ac0c7346"
 };
 
 let db = null;
