@@ -1825,51 +1825,75 @@ body {
 
   /* 중앙 보드 영역 축소 */
   .coordinate-board-area {
-    grid-template-columns: minmax(0, 1fr) 220px;
-    padding: 6px;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    padding: 4px;
+    gap: 6px;
   }
 
   #coordinate-canvas {
-    max-width: min(100%, calc(100vh - 120px));
-    max-height: min(100%, calc(100vh - 120px));
+    max-width: min(100%, calc(100vh - 150px));
+    max-height: min(100%, calc(100vh - 150px));
   }
 
   /* 우측 입력 패널 축소 */
   .coord-keypad-panel {
-    padding: 6px !important;
+    padding: 4px !important;
   }
   .coord-history-box {
-    margin-bottom: 6px !important;
-    padding: 6px !important;
+    margin-bottom: 4px !important;
+    padding: 4px !important;
   }
   .coord-history-row {
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
   }
   .coord-input-slots {
-    font-size: 0.9rem !important;
+    font-size: 0.85rem !important;
   }
   .input-slot {
-    min-width: 24px;
-    height: 22px;
-    line-height: 18px;
+    min-width: 20px;
+    height: 20px;
+    line-height: 16px;
   }
 
   /* 키패드 그리드 및 버튼 축소 */
   .keypad-grid {
-    gap: 4px;
+    gap: 3px;
   }
   .key-btn {
-    height: 32px;
-    font-size: 0.9rem;
+    height: 28px;
+    font-size: 0.85rem;
     border-width: 1px;
   }
   .btn-confirm {
-    height: 34px !important;
-    line-height: 34px !important;
-    font-size: 0.85rem !important;
-    margin-top: 6px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    font-size: 0.8rem !important;
+    margin-top: 4px !important;
     padding: 0 !important;
+  }
+
+  /* 우측 게임 로그 및 사분면 힌트 축소 */
+  .game-log-area {
+    padding: 4px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+  }
+  .log-entry {
+    padding-bottom: 2px !important;
+  }
+  .quadrant-hint-box {
+    padding: 4px !important;
+  }
+  .hint-title {
+    font-size: 0.72rem !important;
+    margin-bottom: 3px !important;
+  }
+  .quadrant-grid-mini {
+    gap: 2px !important;
+  }
+  .q-mini {
+    padding: 3px 1px !important;
+    font-size: 0.65rem !important;
   }
 }
 
