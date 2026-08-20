@@ -834,7 +834,16 @@ const UI = {
     const gameRef = db.ref(`games/${roomId}`);
     gameRef.on('value', snapshot => {
       const game = snapshot.val();
-      if (!game) return;
+      if (!game) {
+        if (PlayerState.currentRoom && PlayerState.currentRoom.id === roomId) {
+          gameRef.off();
+          this.showToast('🚨 방이 관리자에 의해 폐쇄되어 대기실로 복귀합니다.');
+          PlayerState.currentRoom = null;
+          PlayerState.isSpectating = false;
+          this.navigateTo('screen-room-list');
+        }
+        return;
+      }
 
       GameState.board = game.board;
       GameState.currentTurn = game.currentTurn;
@@ -954,13 +963,90 @@ const UI = {
     const grid = document.getElementById('admin-rooms-grid');
     if (!grid) return;
     grid.innerHTML = '';
+    
+    const roomsCountEl = document.getElementById('admin-rooms-count');
+    if (roomsCountEl) roomsCountEl.textContent = MockRooms.length;
+
+    const emptyMsg = document.getElementById('admin-empty-msg');
+    if (emptyMsg) emptyMsg.style.display = MockRooms.length ? 'none' : 'block';
+
     MockRooms.forEach(room => {
       const card = document.createElement('div');
       card.className = 'admin-room-card';
-      card.innerHTML = `<div>🗺️ ${room.name}</div>`;
-      card.onclick = () => { this.closeModal('modal-admin'); this.openSpectateModal(room); };
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.cursor = 'pointer';
+      
+      card.innerHTML = `
+        <div style="flex: 1;">🗺️ ${room.name} (${room.status})</div>
+        <button class="modal-close" style="position: static; font-size: 1.2rem; color: #e74c3c; background: none; border: none; cursor: pointer; padding: 5px 10px;" title="방 폐쇄">✕</button>
+      `;
+
+      card.onclick = () => {
+        this.closeModal('modal-admin');
+        this.openSpectateModal(room);
+      };
+
+      const closeBtn = card.querySelector('button');
+      if (closeBtn) {
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (confirm(`🚨 "${room.name}" 방을 정말 강제 폐쇄하시겠습니까?`)) {
+            this.closeRoomByAdmin(room.id);
+          }
+        };
+      }
+
       grid.appendChild(card);
     });
+  },
+
+  openAdminAuthModal() {
+    const pwInput = document.getElementById('input-admin-pw');
+    if (pwInput) pwInput.value = '';
+    this.openModal('modal-admin-auth');
+    setTimeout(() => pwInput?.focus(), 150);
+  },
+
+  verifyAdminPassword() {
+    const pwInput = document.getElementById('input-admin-pw');
+    const pw = pwInput?.value;
+    if (pw === '2525') {
+      this.closeModal('modal-admin-auth');
+      this.openModal('modal-admin');
+      this.showToast('🔓 관리자 인증 성공!');
+    } else {
+      this.showToast('❌ 비밀번호가 틀렸습니다!');
+      if (pwInput) {
+        pwInput.value = '';
+        pwInput.focus();
+      }
+    }
+  },
+
+  closeRoomByAdmin(roomId) {
+    if (db) {
+      db.ref(`rooms/${roomId}`).remove().then(() => {
+        db.ref(`games/${roomId}`).remove().then(() => {
+          this.showToast('🚨 방이 폐쇄되었습니다.');
+          this.renderAdminConsole();
+        }).catch(err => {
+          console.error("Game cleanup failed:", err);
+          this.showToast('🚨 게임방 데이터 삭제 실패');
+        });
+      }).catch(err => {
+        console.error("Room cleanup failed:", err);
+        this.showToast('🚨 대기방 데이터 삭제 실패');
+      });
+    } else {
+      const idx = MockRooms.findIndex(r => r.id === roomId);
+      if (idx !== -1) {
+        MockRooms.splice(idx, 1);
+        this.showToast('🚨 방이 폐쇄되었습니다. (오프라인)');
+        this.renderAdminConsole();
+      }
+    }
   },
 
   initGameBoard() {

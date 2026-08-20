@@ -9,13 +9,13 @@
     "rooms": {
       ".read": "auth != null",
       "$room_id": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid)"
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || newData.child('playerUids').child(auth.uid).exists())"
       }
     },
     "games": {
       "$game_id": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('playerUids').child(auth.uid).exists() || data.child('ownerUid').val() === auth.uid)"
+        ".write": "auth != null && (!data.exists() || data.child('playerUids').child(auth.uid).exists() || data.child('ownerUid').val() === auth.uid || newData.child('playerUids').child(auth.uid).exists())"
       }
     }
   }
