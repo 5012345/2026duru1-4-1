@@ -849,6 +849,7 @@ const UI = {
         }
         return;
       }
+      if (!game.players) return;
 
       const prevTurn = GameState.currentTurn;
       const isTurnChanged = (prevTurn !== game.currentTurn || GameState.lastX !== game.lastX || GameState.lastY !== game.lastY);
@@ -1184,7 +1185,7 @@ const UI = {
   },
 
   checkIsMyTurn() {
-    if (GameState.isGameOver) return false;
+    if (GameState.isGameOver || !GameState.players || !GameState.players[GameState.currentTurn]) return false;
     if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
       const activePlayer = GameState.players[GameState.currentTurn];
       return activePlayer && activePlayer.uid === PlayerState.uid;
@@ -1194,6 +1195,7 @@ const UI = {
   },
 
   updateHUDTurn() {
+    if (!GameState.players) return;
     const isMyTurn = this.checkIsMyTurn();
     const confirmBtn = document.getElementById('btn-confirm-coord');
     if (confirmBtn) confirmBtn.disabled = !isMyTurn;
@@ -1456,6 +1458,7 @@ const UI = {
   },
 
   updateCoordDisplay() {
+    if (!GameState.players) return;
     const prevEl = document.getElementById('display-prev-coord');
     if (prevEl) {
       if (GameState.lastX !== null && GameState.lastY !== null) {

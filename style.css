@@ -1778,5 +1778,100 @@ body {
   100% { transform: scale(1); }
 }
 
+/* ══════════════════════════════════════════════
+   RESPONSIVE DESIGN FOR TABLETS & SHORT VIEWPORTS (max-height)
+   ══════════════════════════════════════════════ */
+@media (max-height: 840px) {
+  #screen-game.active {
+    padding: 4px 10px !important;
+  }
+
+  .game-wrapper {
+    gap: 4px;
+  }
+
+  /* HUD 축소 */
+  .game-hud {
+    padding-bottom: 4px;
+  }
+  .turn-indicator {
+    padding: 4px 12px;
+    min-width: 140px;
+  }
+  .round-timer {
+    width: 36px;
+    height: 36px;
+  }
+  .timer-value {
+    font-size: 0.95rem;
+  }
+  .room-info-hud {
+    font-size: 0.8rem;
+  }
+
+  /* 사이드 패널 너비 축소 */
+  .game-main-area {
+    grid-template-columns: 140px 1fr 140px;
+    gap: 6px;
+  }
+  .player-side-panel {
+    padding: 6px;
+    gap: 4px;
+  }
+  .side-panel-title {
+    font-size: 0.85rem;
+    padding-bottom: 4px;
+  }
+
+  /* 중앙 보드 영역 축소 */
+  .coordinate-board-area {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    padding: 6px;
+    gap: 8px;
+  }
+
+  #coordinate-canvas {
+    max-width: min(100%, calc(100vh - 120px));
+    max-height: min(100%, calc(100vh - 120px));
+  }
+
+  /* 우측 입력 패널 축소 */
+  .coord-keypad-panel {
+    padding: 6px !important;
+  }
+  .coord-history-box {
+    margin-bottom: 6px !important;
+    padding: 6px !important;
+  }
+  .coord-history-row {
+    font-size: 0.8rem !important;
+  }
+  .coord-input-slots {
+    font-size: 0.9rem !important;
+  }
+  .input-slot {
+    min-width: 24px;
+    height: 22px;
+    line-height: 18px;
+  }
+
+  /* 키패드 그리드 및 버튼 축소 */
+  .keypad-grid {
+    gap: 4px;
+  }
+  .key-btn {
+    height: 32px;
+    font-size: 0.9rem;
+    border-width: 1px;
+  }
+  .btn-confirm {
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 0.85rem !important;
+    margin-top: 6px !important;
+    padding: 0 !important;
+  }
+}
+
 
 
