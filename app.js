@@ -1013,9 +1013,20 @@ const UI = {
     const pwInput = document.getElementById('input-admin-pw');
     const pw = pwInput?.value;
     if (pw === '2525') {
-      this.closeModal('modal-admin-auth');
-      this.openModal('modal-admin');
-      this.showToast('🔓 관리자 인증 성공!');
+      if (db && PlayerState.uid) {
+        db.ref(`users/${PlayerState.uid}`).update({ isAdmin: true }).then(() => {
+          this.closeModal('modal-admin-auth');
+          this.openModal('modal-admin');
+          this.showToast('🔓 관리자 권한 획득 성공!');
+        }).catch(err => {
+          console.error("Admin grant failed:", err);
+          this.showToast('⚠️ 권한 획득 실패 (네트워크 확인)');
+        });
+      } else {
+        this.closeModal('modal-admin-auth');
+        this.openModal('modal-admin');
+        this.showToast('🔓 관리자 인증 성공 (오프라인)!');
+      }
     } else {
       this.showToast('❌ 비밀번호가 틀렸습니다!');
       if (pwInput) {
