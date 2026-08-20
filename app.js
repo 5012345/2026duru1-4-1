@@ -76,6 +76,7 @@ const GameState = {
   lastY: null,
   isFirstMove: true,
   rewardSettled: false,
+  gameStartOverlayShown: false,
 
   coordToIdx(v) { return v + 5; },
   idxToCoord(i) { return i - 5; },
@@ -94,6 +95,7 @@ const GameState = {
     this.lastY = null;
     this.isFirstMove = true;
     this.rewardSettled = false;
+    this.gameStartOverlayShown = false;
   },
 
   canPlace(x, y) {
@@ -811,7 +813,7 @@ const UI = {
         const updates = {
           players: updatedPlayers,
           playerUids: updatedUids,
-          turnEndTime: Date.now() + 30000
+          turnEndTime: Date.now() + 32000
         };
 
         gameRef.update(updates).then(() => {
@@ -889,6 +891,10 @@ const UI = {
       const hasOpponent = game.players[1] && game.players[1].uid !== null;
       if (hasOpponent) {
         this.syncTurnTimer(game.turnEndTime, game.currentTurn);
+        if (!GameState.gameStartOverlayShown && !game.isGameOver) {
+          GameState.gameStartOverlayShown = true;
+          this.showGameStartOverlay();
+        }
       } else {
         if (GameState.timerInterval) {
           clearInterval(GameState.timerInterval);
@@ -950,13 +956,14 @@ const UI = {
 
     const updateTimer = () => {
       const now = Date.now();
-      const diff = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
+      const rawDiff = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
+      const diff = Math.min(30, rawDiff);
       GameState.timeLeft = diff;
 
       const timerEl = document.getElementById('timer-value');
       if (timerEl) timerEl.textContent = diff;
 
-      if (diff <= 0) {
+      if (rawDiff <= 0) {
         clearInterval(GameState.timerInterval);
         GameState.timerInterval = null;
 
@@ -1086,6 +1093,42 @@ const UI = {
         this.renderAdminConsole();
       }
     }
+  },
+
+  showGameStartOverlay() {
+    document.getElementById('game-start-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'game-start-overlay';
+    overlay.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(26, 15, 7, 0.95);
+      border: 3px solid var(--gold);
+      border-radius: 8px;
+      padding: 1.8rem 2.5rem;
+      text-align: center;
+      z-index: 100;
+      box-shadow: 0 0 20px rgba(0,0,0,0.85);
+      font-family: inherit;
+      pointer-events: none;
+      animation: pixelPop 0.25s ease-out;
+    `;
+    overlay.innerHTML = `
+      <h1 style="color: #f1c40f; margin: 0 0 8px 0; font-size: 2rem; text-shadow: 2px 2px 0px #000; font-weight: bold;">🎮 게임 시작</h1>
+      <p style="color: #fff; margin: 0; font-size: 1.2rem; line-height: 1.6;">대전 상대가 매칭되었습니다!<br/>잠시 후 30초 대전이 개시됩니다.</p>
+    `;
+    const container = document.querySelector('.coordinate-board-area') || document.getElementById('screen-game');
+    if (container) {
+      container.style.position = 'relative';
+      container.appendChild(overlay);
+    }
+    setTimeout(() => {
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 400);
+    }, 1600);
   },
 
   initGameBoard() {
