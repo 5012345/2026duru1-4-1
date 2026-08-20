@@ -77,6 +77,7 @@ const GameState = {
   isFirstMove: true,
   rewardSettled: false,
   gameStartOverlayShown: false,
+  gameStarted: false,
 
   coordToIdx(v) { return v + 5; },
   idxToCoord(i) { return i - 5; },
@@ -96,6 +97,7 @@ const GameState = {
     this.isFirstMove = true;
     this.rewardSettled = false;
     this.gameStartOverlayShown = false;
+    this.gameStarted = false;
   },
 
   canPlace(x, y) {
@@ -777,15 +779,16 @@ const UI = {
         board: Array(11).fill(null).map(() => Array(11).fill(null)),
         currentTurn: 0,
         players: [
-          { name: PlayerState.nickname, color: PLAYER_COLORS[0], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins },
-          { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null, wins: 0 }
+          { name: PlayerState.nickname, color: PLAYER_COLORS[0], skin: PlayerState.markerSkin, uid: PlayerState.uid, wins: PlayerState.wins, ready: false },
+          { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null, wins: 0, ready: false }
         ],
         playerUids: { [PlayerState.uid]: 0 },
         lastX: null,
         lastY: null,
         isFirstMove: true,
         isGameOver: false,
-        turnEndTime: Date.now() + 30000
+        gameStarted: false,
+        turnEndTime: 0
       };
       gameRef.set(initialGame).then(() => {
         this.bindGameRealtime(roomId, isOwner);
@@ -804,7 +807,8 @@ const UI = {
           color: PLAYER_COLORS[1],
           skin: PlayerState.markerSkin,
           uid: PlayerState.uid,
-          wins: PlayerState.wins
+          wins: PlayerState.wins,
+          ready: false
         };
 
         const updatedUids = { ...game.playerUids };
@@ -812,8 +816,7 @@ const UI = {
 
         const updates = {
           players: updatedPlayers,
-          playerUids: updatedUids,
-          turnEndTime: Date.now() + 32000
+          playerUids: updatedUids
         };
 
         gameRef.update(updates).then(() => {
@@ -864,6 +867,7 @@ const UI = {
       GameState.lastY = dbLastY;
       GameState.isFirstMove = game.isFirstMove;
       GameState.isGameOver = game.isGameOver;
+      GameState.gameStarted = game.gameStarted || false;
 
       if (isTurnChanged && game.players && !game.isGameOver) {
         const nextPlayer = game.players[game.currentTurn];
@@ -892,23 +896,57 @@ const UI = {
       this.updateCoordDisplay();
       this.drawGrid();
 
-      const hasOpponent = game.players[1] && game.players[1].uid !== null;
-      if (hasOpponent) {
+      const readyBtn = document.getElementById('btn-game-ready');
+      const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+
+      if (game.gameStarted) {
+        if (readyBtn) readyBtn.style.display = 'none';
         this.syncTurnTimer(game.turnEndTime, game.currentTurn);
         if (!GameState.gameStartOverlayShown && !game.isGameOver) {
           GameState.gameStartOverlayShown = true;
           this.showGameStartOverlay();
         }
       } else {
+        if (readyBtn) {
+          readyBtn.style.display = 'block';
+          if (myIndex !== -1) {
+            const myReady = game.players[myIndex].ready || false;
+            if (myReady) {
+              readyBtn.textContent = '🟢 준비 완료 (취소하려면 클릭)';
+              readyBtn.style.background = 'linear-gradient(to bottom, #27ae60, #1e824c)';
+              readyBtn.style.borderColor = '#2ecc71';
+            } else {
+              readyBtn.textContent = '🟠 게임 준비';
+              readyBtn.style.background = 'linear-gradient(to bottom, #d35400, #a04000)';
+              readyBtn.style.borderColor = '#e67e22';
+            }
+          }
+        }
+
         if (GameState.timerInterval) {
           clearInterval(GameState.timerInterval);
           GameState.timerInterval = null;
         }
         const timerEl = document.getElementById('timer-value');
         if (timerEl) timerEl.textContent = '⏱️';
+
+        // 두 명 다 ready 상태인지 감시해서 시작 선포
+        const p0 = game.players[0];
+        const p1 = game.players[1];
+        const isP1Joined = p1 && p1.uid !== null;
+        const allReady = p0 && p1 && p0.ready && p1.ready;
+        if (isP1Joined && allReady) {
+          if (myIndex === 0) {
+            gameRef.update({
+              gameStarted: true,
+              turnEndTime: Date.now() + 32000
+            });
+          }
+        }
       }
 
-      if (hasOpponent && !GameState.isGameOver) {
+      const isP1Joined = game.players[1] && game.players[1].uid !== null;
+      if (isP1Joined && !game.isGameOver) {
         const hudRn = document.getElementById('hud-room-name');
         if (hudRn) hudRn.textContent = PlayerState.currentRoom.name;
       }
@@ -1135,6 +1173,21 @@ const UI = {
     }, 1600);
   },
 
+  toggleReady() {
+    if (!db || !PlayerState.currentRoom) return;
+    const gameRef = db.ref(`games/${PlayerState.currentRoom.id}`);
+    gameRef.once('value').then(snapshot => {
+      const game = snapshot.val();
+      if (!game || game.gameStarted) return;
+      
+      const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+      if (myIndex === -1) return;
+
+      const currentReady = game.players[myIndex].ready || false;
+      gameRef.child(`players/${myIndex}`).update({ ready: !currentReady });
+    });
+  },
+
   initGameBoard() {
     const room = PlayerState.currentRoom;
     const rn = document.getElementById('hud-room-name');
@@ -1179,7 +1232,10 @@ const UI = {
             ${p.name[0] || '?'}
           </div>
           <div class="player-details">
-            <div class="p-name">${p.isAI?'🤖 ':''}${p.name}</div>
+            <div class="p-name">
+              ${p.isAI?'🤖 ':''}${p.name}
+              ${(!GameState.isAIMode && !GameState.gameStarted) ? `<span style="font-size: 0.7rem; font-weight: bold; margin-left: 4px; color: ${p.ready ? '#2ecc71' : '#e67e22'};">${p.ready ? '[준비완료]' : '[대기중]'}</span>` : ''}
+            </div>
             <div class="p-score" id="score-${idx}">🏆 ${playerWins}승</div>
           </div>`;
         left.appendChild(el);
@@ -1190,6 +1246,7 @@ const UI = {
   checkIsMyTurn() {
     if (GameState.isGameOver || !GameState.players || !GameState.players[GameState.currentTurn]) return false;
     if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
+      if (!GameState.gameStarted) return false;
       const activePlayer = GameState.players[GameState.currentTurn];
       return activePlayer && activePlayer.uid === PlayerState.uid;
     }
