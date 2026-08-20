@@ -852,24 +852,27 @@ const UI = {
       if (!game.players) return;
 
       const prevTurn = GameState.currentTurn;
-      const isTurnChanged = (prevTurn !== game.currentTurn || GameState.lastX !== game.lastX || GameState.lastY !== game.lastY);
+      const dbLastX = (game.lastX !== undefined && game.lastX !== null) ? Number(game.lastX) : null;
+      const dbLastY = (game.lastY !== undefined && game.lastY !== null) ? Number(game.lastY) : null;
+      
+      const isTurnChanged = (prevTurn !== game.currentTurn || GameState.lastX !== dbLastX || GameState.lastY !== dbLastY);
 
       GameState.board = game.board;
       GameState.currentTurn = game.currentTurn;
       GameState.players = game.players;
-      GameState.lastX = game.lastX !== null ? Number(game.lastX) : null;
-      GameState.lastY = game.lastY !== null ? Number(game.lastY) : null;
+      GameState.lastX = dbLastX;
+      GameState.lastY = dbLastY;
       GameState.isFirstMove = game.isFirstMove;
       GameState.isGameOver = game.isGameOver;
 
       if (isTurnChanged && game.players && !game.isGameOver) {
         const nextPlayer = game.players[game.currentTurn];
         if (nextPlayer) {
-          if (game.lastX !== null && game.lastY !== null) {
+          if (dbLastX !== null && dbLastY !== null) {
             const prevIdx = (game.currentTurn + 1) % game.players.length;
             const prevPlayer = game.players[prevIdx];
             if (prevPlayer) {
-              this.addLog(`🎯 ${prevPlayer.name} → (${game.lastX}, ${game.lastY})`, 'log-action');
+              this.addLog(`🎯 ${prevPlayer.name} → (${dbLastX}, ${dbLastY})`, 'log-action');
             }
           }
           this.addLog(`🔄 ${nextPlayer.name}의 턴`, 'log-turn');
@@ -1199,6 +1202,13 @@ const UI = {
     const isMyTurn = this.checkIsMyTurn();
     const confirmBtn = document.getElementById('btn-confirm-coord');
     if (confirmBtn) confirmBtn.disabled = !isMyTurn;
+
+    const activePlayer = GameState.players[GameState.currentTurn];
+    const turnPlayerNameEl = document.getElementById('turn-player-name');
+    if (turnPlayerNameEl && activePlayer) {
+      turnPlayerNameEl.textContent = activePlayer.name;
+      turnPlayerNameEl.style.color = activePlayer.color || '#ff0000';
+    }
   },
 
   startTurnTimer() {
