@@ -263,12 +263,13 @@
               <button class="key-btn key-clear" onclick="UI.pressKey('clear')">C</button>
             </div>
 
+            <!-- 게임 준비 버튼 -->
+            <button class="btn btn-ready" id="btn-game-ready" onclick="UI.toggleReady()" style="width: 100%; margin-top: 8px; background: linear-gradient(to bottom, #d35400, #a04000); border: 2px solid #e67e22; color: #fff; font-weight: bold; height: 40px; border-radius: 6px; cursor: pointer; display: block;">
+              🟠 게임 준비
+            </button>
             <!-- 이 좌표에 놓기 버튼 -->
             <button class="btn btn-confirm" id="btn-confirm-coord" onclick="UI.confirmCoord()" style="width: 100%; margin-top: 10px;" disabled>
               ✅ 이 좌표에 놓기
-            </button>
-            <button class="btn btn-ready" id="btn-game-ready" onclick="UI.toggleReady()" style="width: 100%; margin-top: 8px; background: linear-gradient(to bottom, #d35400, #a04000); border: 2px solid #e67e22; color: #fff; font-weight: bold; height: 40px; border-radius: 6px; cursor: pointer; display: block;">
-              🟠 게임 준비
             </button>
           </div>
 

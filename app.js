@@ -1174,17 +1174,41 @@ const UI = {
   },
 
   toggleReady() {
-    if (!db || !PlayerState.currentRoom) return;
+    if (!db || !PlayerState.currentRoom) {
+      this.showToast('⚠️ DB 연결이 끊어졌습니다.');
+      return;
+    }
     const gameRef = db.ref(`games/${PlayerState.currentRoom.id}`);
     gameRef.once('value').then(snapshot => {
       const game = snapshot.val();
-      if (!game || game.gameStarted) return;
+      if (!game) {
+        this.showToast('⚠️ 게임 세션을 찾을 수 없습니다.');
+        return;
+      }
+      if (game.gameStarted) {
+        this.showToast('⚠️ 게임이 이미 시작되었습니다.');
+        return;
+      }
       
-      const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
-      if (myIndex === -1) return;
+      let myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+      if (myIndex === -1) {
+        myIndex = game.players.findIndex(p => p.name === PlayerState.nickname);
+      }
+
+      if (myIndex === -1) {
+        console.error("Player mapping failed:", game.players, PlayerState);
+        this.showToast('⚠️ 플레이어 정보를 매칭할 수 없습니다. (재접속 필요)');
+        return;
+      }
 
       const currentReady = game.players[myIndex].ready || false;
-      gameRef.child(`players/${myIndex}`).update({ ready: !currentReady });
+      const nextReady = !currentReady;
+      gameRef.child(`players/${myIndex}`).update({ ready: nextReady }).then(() => {
+        this.showToast(nextReady ? '🟢 준비 완료!' : '🟠 준비 취소');
+      }).catch(err => {
+        console.error("Ready update failed:", err);
+        this.showToast('❌ 준비 상태 업데이트 실패');
+      });
     });
   },
 
