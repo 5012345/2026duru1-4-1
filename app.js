@@ -104,8 +104,11 @@ const GameState = {
   isValidMove(x, y) {
     if (!this.canPlace(x, y)) return false;
     if (this.isFirstMove) return true;
-    const sameX = (x === this.lastX);
-    const sameY = (y === this.lastY);
+    
+    const lx = this.lastX !== null ? Number(this.lastX) : null;
+    const ly = this.lastY !== null ? Number(this.lastY) : null;
+    const sameX = (Number(x) === lx);
+    const sameY = (Number(y) === ly);
     return sameX !== sameY;
   },
 
@@ -845,13 +848,38 @@ const UI = {
         return;
       }
 
+      const prevTurn = GameState.currentTurn;
+      const isTurnChanged = (prevTurn !== game.currentTurn || GameState.lastX !== game.lastX || GameState.lastY !== game.lastY);
+
       GameState.board = game.board;
       GameState.currentTurn = game.currentTurn;
       GameState.players = game.players;
-      GameState.lastX = game.lastX;
-      GameState.lastY = game.lastY;
+      GameState.lastX = game.lastX !== null ? Number(game.lastX) : null;
+      GameState.lastY = game.lastY !== null ? Number(game.lastY) : null;
       GameState.isFirstMove = game.isFirstMove;
       GameState.isGameOver = game.isGameOver;
+
+      if (isTurnChanged && game.players && !game.isGameOver) {
+        const nextPlayer = game.players[game.currentTurn];
+        if (nextPlayer) {
+          if (game.lastX !== null && game.lastY !== null) {
+            const prevIdx = (game.currentTurn + 1) % game.players.length;
+            const prevPlayer = game.players[prevIdx];
+            if (prevPlayer) {
+              this.addLog(`🎯 ${prevPlayer.name} → (${game.lastX}, ${game.lastY})`, 'log-action');
+            }
+          }
+          this.addLog(`🔄 ${nextPlayer.name}의 턴`, 'log-turn');
+
+          const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+          if (myIndex === game.currentTurn) {
+            this.showToast('🔔 내 턴입니다! 좌표를 입력하세요.');
+            PlayerState.inputX = 'ㅁ';
+            PlayerState.inputY = 'ㅁ';
+            PlayerState.focusedSlot = 'X';
+          }
+        }
+      }
 
       this.updateHUDTurn();
       this.renderPlayerPanels();
@@ -1072,7 +1100,11 @@ const UI = {
     PlayerState.focusedSlot = 'X';
     this.updateCoordDisplay();
     this.drawGrid();
-    this.startTurnTimer();
+    
+    const isOnline = db && room && !room.id.startsWith('ai_');
+    if (!isOnline) {
+      this.startTurnTimer();
+    }
     if (GameState.isAIMode && GameState.players[0]?.isAI) setTimeout(() => this.doAITurn(), 800);
   },
 
@@ -1108,8 +1140,18 @@ const UI = {
     });
   },
 
+  checkIsMyTurn() {
+    if (GameState.isGameOver) return false;
+    if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
+      const activePlayer = GameState.players[GameState.currentTurn];
+      return activePlayer && activePlayer.uid === PlayerState.uid;
+    }
+    const activePlayer = GameState.players[GameState.currentTurn];
+    return activePlayer && !activePlayer.isAI;
+  },
+
   updateHUDTurn() {
-    const isMyTurn = !GameState.players[GameState.currentTurn]?.isAI;
+    const isMyTurn = this.checkIsMyTurn();
     const confirmBtn = document.getElementById('btn-confirm-coord');
     if (confirmBtn) confirmBtn.disabled = !isMyTurn;
   },
@@ -1152,9 +1194,10 @@ const UI = {
   },
 
   confirmCoord() {
-    if (GameState.isGameOver) return;
-    const p = GameState.players[GameState.currentTurn];
-    if (p?.isAI) return;
+    if (!this.checkIsMyTurn()) {
+      this.showToast('⚠️ 내 턴이 아닙니다!');
+      return;
+    }
     this.placeMarker(PlayerState.selectedX, PlayerState.selectedY, GameState.currentTurn);
   },
 
@@ -1315,13 +1358,13 @@ const UI = {
   },
 
   focusSlot(slot) {
-    if (GameState.players[GameState.currentTurn]?.isAI) return;
+    if (!this.checkIsMyTurn()) return;
     PlayerState.focusedSlot = slot;
     this.updateCoordDisplay();
   },
 
   pressKey(key) {
-    if (GameState.players[GameState.currentTurn]?.isAI) return;
+    if (!this.checkIsMyTurn()) return;
 
     const isX = PlayerState.focusedSlot === 'X';
     let currentVal = isX ? PlayerState.inputX : PlayerState.inputY;
@@ -1392,7 +1435,7 @@ const UI = {
 
     const confirmBtn = document.getElementById('btn-confirm-coord');
     if (confirmBtn) {
-      const isMyTurn = !GameState.players[GameState.currentTurn]?.isAI;
+      const isMyTurn = this.checkIsMyTurn();
       const valX = parseInt(PlayerState.inputX);
       const valY = parseInt(PlayerState.inputY);
       const hasValidInputs = !isNaN(valX) && valX >= -5 && valX <= 5 && !isNaN(valY) && valY >= -5 && valY <= 5;
