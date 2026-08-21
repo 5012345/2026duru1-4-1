@@ -796,6 +796,9 @@ const UI = {
       };
       gameRef.set(initialGame).then(() => {
         this.bindGameRealtime(roomId, isOwner);
+      }).catch(err => {
+        console.error("Game session creation failed:", err);
+        this.showToast('❌ 게임 세션 생성 실패 (보안 규칙 거부)');
       });
     } else {
       gameRef.once('value').then(snapshot => {
