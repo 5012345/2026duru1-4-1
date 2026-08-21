@@ -888,7 +888,10 @@ const UI = {
           }
           this.addLog(`🔄 ${nextPlayer.name}의 턴`, 'log-turn');
 
-          const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+          let myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+          if (myIndex === -1) {
+            myIndex = game.players.findIndex(p => p.name === PlayerState.nickname);
+          }
           if (myIndex === game.currentTurn) {
             this.showToast('🔔 내 턴입니다! 좌표를 입력하세요.');
             PlayerState.inputX = 'ㅁ';
@@ -907,7 +910,10 @@ const UI = {
       
       if (isP1Joined) {
         if (!game.turnEndTime || game.turnEndTime === 0) {
-          const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+          let myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+          if (myIndex === -1) {
+            myIndex = game.players.findIndex(p => p.name === PlayerState.nickname);
+          }
           if (myIndex === 0) {
             gameRef.update({
               turnEndTime: Date.now() + 32000
@@ -938,7 +944,10 @@ const UI = {
 
       if (game.isGameOver && !GameState.rewardSettled) {
         GameState.rewardSettled = true;
-        const myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+        let myIndex = game.players.findIndex(p => p.uid === PlayerState.uid);
+        if (myIndex === -1) {
+          myIndex = game.players.findIndex(p => p.name === PlayerState.nickname);
+        }
         if (myIndex !== -1) {
           const isP0Win = this.checkWinSimulate(game.board, 0);
           const isP1Win = this.checkWinSimulate(game.board, 1);
@@ -994,7 +1003,10 @@ const UI = {
         clearInterval(GameState.timerInterval);
         GameState.timerInterval = null;
 
-        const myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+        let myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+        if (myIndex === -1) {
+          myIndex = GameState.players.findIndex(p => p.name === PlayerState.nickname);
+        }
         const activePlayer = GameState.players[currentTurn];
         if (myIndex === 0) {
           this.addLog(`⏱️ ${activePlayer.name} 시간 초과! 턴 패스.`, 'log-error');
@@ -1214,7 +1226,10 @@ const UI = {
     if (GameState.isGameOver || !GameState.players || !GameState.players[GameState.currentTurn]) return false;
     if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
       const activePlayer = GameState.players[GameState.currentTurn];
-      return activePlayer && activePlayer.uid === PlayerState.uid;
+      if (!activePlayer) return false;
+      if (activePlayer.uid === PlayerState.uid) return true;
+      if (activePlayer.name === PlayerState.nickname) return true;
+      return false;
     }
     const activePlayer = GameState.players[GameState.currentTurn];
     return activePlayer && !activePlayer.isAI;
@@ -1283,7 +1298,10 @@ const UI = {
     if (GameState.isGameOver) return;
 
     if (db && PlayerState.currentRoom && !PlayerState.currentRoom.id.startsWith('ai_')) {
-      const myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+      let myIndex = GameState.players.findIndex(p => p.uid === PlayerState.uid);
+      if (myIndex === -1) {
+        myIndex = GameState.players.findIndex(p => p.name === PlayerState.nickname);
+      }
       if (myIndex !== playerIdx) {
         this.showToast('⚠️ 내 턴이 아닙니다!');
         return;
