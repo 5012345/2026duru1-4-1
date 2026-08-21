@@ -1809,7 +1809,7 @@ body {
     font-size: 0.8rem;
   }
 
-  /* 사이드 패널 너비 축소 */
+  /* 사이드 패널 너비 축소 및 오버플로우 방지 */
   .game-main-area {
     grid-template-columns: 140px 1fr 140px;
     gap: 6px;
@@ -1817,27 +1817,32 @@ body {
   .player-side-panel {
     padding: 6px;
     gap: 4px;
+    max-height: calc(100vh - 90px) !important;
+    overflow-y: auto !important;
   }
   .side-panel-title {
     font-size: 0.85rem;
     padding-bottom: 4px;
   }
 
-  /* 중앙 보드 영역 축소 */
+  /* 중앙 보드 영역 축소 및 우측 키패드 가로폭 확보 */
   .coordinate-board-area {
-    grid-template-columns: minmax(0, 1fr) 210px;
+    grid-template-columns: minmax(0, 1fr) 240px;
     padding: 4px;
     gap: 6px;
   }
 
   #coordinate-canvas {
-    max-width: min(100%, calc(100vh - 150px));
-    max-height: min(100%, calc(100vh - 150px));
+    max-width: min(100%, calc(100vh - 160px));
+    max-height: min(100%, calc(100vh - 160px));
   }
 
-  /* 우측 입력 패널 축소 */
+  /* 우측 입력 패널 축소 및 스크롤 가드 */
   .coord-keypad-panel {
-    padding: 4px !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    max-height: calc(100vh - 160px) !important;
+    overflow-y: auto !important;
   }
   .coord-history-box {
     margin-bottom: 4px !important;
