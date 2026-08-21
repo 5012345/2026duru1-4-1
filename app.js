@@ -731,6 +731,11 @@ const UI = {
   },
 
   createRoom() {
+    if (db && (!PlayerState.uid || PlayerState.uid === 'offline' || !auth.currentUser)) {
+      this.showToast('⚠️ 로그인 정보가 유실되었습니다. 다시 로그인해 주세요.');
+      this.navigateTo('screen-lobby');
+      return;
+    }
     const name = document.getElementById('input-room-name')?.value.trim();
     if (!name) { this.showToast('⚠️ 방 이름을 입력하세요!'); return; }
     const isPrivate = document.getElementById('room-private')?.checked;
@@ -781,6 +786,7 @@ const UI = {
           { name: '대기 중…', color: PLAYER_COLORS[1], skin: 'marker_normal', uid: null, wins: 0, ready: false }
         ],
         playerUids: { [PlayerState.uid]: 0 },
+        ownerUid: PlayerState.uid,
         lastX: null,
         lastY: null,
         isFirstMove: true,
